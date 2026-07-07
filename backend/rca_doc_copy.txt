@@ -1,0 +1,9 @@
+Root Cause Analysis Report — Pump P-101
+
+Pump P-101 failed due to Valve V-2201A blockage during the March 2024
+incident. The bearing wear on P-101 caused excessive vibration, which was
+detected during the January 2025 inspection.
+
+Note: the January 2025 inspection log states Valve V-2201A was closed at
+the time of inspection, while the March 2024 maintenance record states
+Valve V-2201A was open during the incident.
