@@ -1,22 +1,42 @@
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 
+from app.documents.loaders import supported_extensions
 from app.schemas.document import DocumentSummary, DocumentUploadResponse
 
 router = APIRouter(tags=["documents"])
 
+_READ_CHUNK_BYTES = 1024 * 1024
+
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(request: Request, file: UploadFile) -> DocumentUploadResponse:
-    ingestion_service = request.app.state.ingestion_service
-    suffix = Path(file.filename or "upload").suffix
+    suffix = Path(file.filename or "upload").suffix.lower()
+    if suffix not in supported_extensions():
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported document type {suffix!r}. Supported: {sorted(supported_extensions())}",
+        )
+
+    max_bytes = request.app.state.settings.max_upload_size_bytes
+    size_so_far = 0
 
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
         tmp_path = Path(tmp.name)
+        while chunk := await file.read(_READ_CHUNK_BYTES):
+            size_so_far += len(chunk)
+            if size_so_far > max_bytes:
+                tmp.close()
+                tmp_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File exceeds the {request.app.state.settings.max_upload_size_mb}MB upload limit.",
+                )
+            tmp.write(chunk)
 
+    ingestion_service = request.app.state.ingestion_service
     try:
         return await ingestion_service.ingest(
             tmp_path,

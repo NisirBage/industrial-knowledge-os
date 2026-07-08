@@ -1,6 +1,6 @@
 # IKIOS Release Report: The Evolution of an Industrial AI Platform
 
-This is the technical narrative behind IKIOS v1.0.0 — not a changelog (see
+This is the technical narrative behind IKIOS v1.0.1 — not a changelog (see
 [CHANGELOG.md](../CHANGELOG.md) for that), but the story of *why* each
 milestone was built the way it was, what was learned, and what tradeoffs were
 made deliberately rather than by accident.
@@ -155,6 +155,37 @@ benchmark result looks weak, instead of omitting the benchmark or presenting
 the number without context, is the same "never fabricate" principle that's
 governed every milestone — applied to the reporting layer itself, not just
 the application logic.
+
+## v1.0.1 — Hardening Sprint
+
+**Goal:** fix what an adversarial reviewer would find, before one does.
+
+An independent Principal AI Architect audit was performed against the tagged
+v1.0.0 codebase — the first time in the project's history the system was
+reviewed by a perspective actively trying to break it rather than build it
+further. The audit found no Critical issues, but three High findings worth
+taking seriously: a precision bug in contradiction detection that produced
+combinatorial false positives (confirmed with live evidence: 27-42
+"contradictions" reported for a single real, deliberately-seeded conflict),
+a complete absence of automated tests at the HTTP boundary despite thorough
+business-logic coverage, and an untreated indirect prompt-injection surface
+in the two places document-derived text reaches a real LLM.
+
+The most valuable outcome of this sprint wasn't fixing the three High
+findings — it was discovering, while fixing the "concurrent startup"
+Medium finding, that the obvious optimization didn't work as predicted.
+Running the five independent dependency-fallback checks concurrently
+(instead of sequentially) was expected to cut cold-start time roughly in
+half to a third; measured, repeatable results showed only a modest ~20-35%
+improvement, because the checks are network-bound and their individual
+durations vary more between runs than they parallelize cleanly. The
+original code comment claiming an "8-10s" improvement was corrected to
+report the honestly measured ~20s figure — including one anomalous 38s run
+that was slower than the sequential baseline — rather than let an
+attractive but false prediction stand. This is the same standard the RC1
+benchmark reporting held itself to, applied to a performance claim instead
+of an accuracy number: measure, then report what was actually measured, not
+what the analysis predicted.
 
 ---
 

@@ -45,6 +45,10 @@ _LOADERS = {
 }
 
 
+def supported_extensions() -> set[str]:
+    return set(_LOADERS)
+
+
 def load_document(path: Path) -> LoadedDocument:
     suffix = path.suffix.lower()
     loader = _LOADERS.get(suffix)

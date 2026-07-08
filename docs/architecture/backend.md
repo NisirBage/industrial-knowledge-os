@@ -95,10 +95,11 @@ Each subsystem gets one router file in `app/api/v1/`, mounted under
 
 ## Testing philosophy
 
-301 tests, zero mocking of internal collaborators beyond simple fakes/stubs
-(no mocking frameworks) — every test either exercises real logic against an
+Zero mocking of internal collaborators beyond simple fakes/stubs (no mocking
+frameworks) — every business-logic test exercises real logic against an
 in-memory/temp-file backend (SQLite via `tmp_path`, `InMemoryGraphRepository`)
-or a hand-written fake implementing the same Protocol. API route handlers
-themselves are verified via live smoke testing (documented in each
-milestone's release notes) rather than `TestClient` route tests — the engines
-and repositories underneath are what's unit-tested exhaustively.
+or a hand-written fake implementing the same Protocol. Since v1.0.1, API
+route handlers also have automated `TestClient` coverage (`tests/test_api_*.py`,
+one file per router, sharing a session-scoped app fixture) alongside the live
+smoke testing documented in each milestone's release notes — see
+[docs/contributing/testing.md](../contributing/testing.md#api-layer-tests-v101).

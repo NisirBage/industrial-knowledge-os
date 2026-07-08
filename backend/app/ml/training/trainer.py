@@ -14,6 +14,7 @@ raises a clear error for them unless the caller supplies their own factory.
 """
 
 import datetime as dt
+from collections import defaultdict
 from typing import Callable, Protocol
 
 import pandas as pd
@@ -29,7 +30,7 @@ from sklearn.metrics import (
     roc_auc_score,
     root_mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
 from app.ml.datasets.models import MLProblemType
 from app.ml.training.models import SklearnEstimator, TrainedModel
@@ -88,6 +89,54 @@ class SklearnTrainer:
             y_test=y_test,
             hyperparameters={key: str(value) for key, value in estimator.get_params().items()},
         )
+
+    def cross_validate(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        problem_type: MLProblemType,
+        n_splits: int = 5,
+        random_state: int = 42,
+    ) -> dict[str, float]:
+        """K-fold cross-validation, distinct from `train()`'s single
+        held-out split: fits a fresh estimator per fold and averages the same
+        metrics `_evaluate` computes, giving a variance-aware complement to
+        the single-split point estimate (see the v1.0.1 audit finding on
+        cross-validation being implemented in TrainingDatasetBuilder but
+        never actually exercised in the live training path)."""
+        factory = self._algorithm_factories.get(problem_type)
+        if factory is None:
+            raise ValueError(
+                f"No algorithm registered for problem type {problem_type.value!r} — "
+                f"supply one via SklearnTrainer(algorithm_factories={{...}})."
+            )
+
+        X_clean = X.select_dtypes(include=["number"]).fillna(0.0)
+
+        if problem_type == MLProblemType.CLASSIFICATION:
+            splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+            splits = splitter.split(X_clean, y)
+        else:
+            splitter = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+            splits = splitter.split(X_clean)
+
+        fold_metrics: list[dict[str, float]] = []
+        for train_idx, test_idx in splits:
+            estimator = factory()
+            estimator.fit(X_clean.iloc[train_idx], y.iloc[train_idx])
+            fold_metrics.append(self._evaluate(estimator, X_clean.iloc[test_idx], y.iloc[test_idx], problem_type))
+
+        return self._average_fold_metrics(fold_metrics)
+
+    @staticmethod
+    def _average_fold_metrics(fold_metrics: list[dict[str, float]]) -> dict[str, float]:
+        if not fold_metrics:
+            return {}
+        totals: dict[str, list[float]] = defaultdict(list)
+        for metrics in fold_metrics:
+            for key, value in metrics.items():
+                totals[key].append(value)
+        return {key: round(sum(values) / len(values), 4) for key, values in totals.items()}
 
     @staticmethod
     def _evaluate(estimator: SklearnEstimator, X_test: pd.DataFrame, y_test: pd.Series, problem_type: MLProblemType) -> dict[str, float]:

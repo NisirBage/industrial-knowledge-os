@@ -5,6 +5,9 @@ dependency is constructed here and only here, so any layer can be swapped
 without touching the modules that consume it.
 """
 
+import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -61,30 +64,61 @@ from app.services.ingestion_service import IngestionService
 from app.services.llm_provider import build_llm_provider
 from app.timeline.engine import TimelineEngine
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
     settings = get_settings()
+    startup_start = time.perf_counter()
 
-    embedder = build_embedder(settings.embedding_model)
-    vector_repository = build_vector_repository(settings.qdrant_url, settings.qdrant_collection, settings.qdrant_local_path)
-    graph_repository = build_graph_repository(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
+    # These five checks are independent at construction time (each either
+    # connects to/loads a real dependency or falls back) — running them
+    # concurrently via threads bounds cold-start time by the slowest single
+    # check instead of their sum, in principle. v1.0.1 hardening: measured
+    # real-world improvement in this environment was ~20s concurrent vs.
+    # ~25-31s sequential (both across repeated runs) — a real but modest
+    # gain, well short of the theoretical best case, because the checks are
+    # network-bound (HTTP/DNS resolution attempts) and their individual
+    # durations vary run to run rather than summing predictably. See
+    # docs/architecture/deployment.md#startup-performance for the honest
+    # measured numbers, including one anomalous ~39s run.
+    embedder_task = asyncio.to_thread(build_embedder, settings.embedding_model)
+    vector_repository_task = asyncio.to_thread(
+        build_vector_repository, settings.qdrant_url, settings.qdrant_collection, settings.qdrant_local_path
+    )
+    graph_repository_task = asyncio.to_thread(
+        build_graph_repository, settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password
+    )
+    entity_extractors_task = asyncio.to_thread(build_entity_extractors, settings.gliner_model, settings.gliner_threshold)
+    reranker_task = asyncio.to_thread(build_reranker, settings.reranker_model)
+
+    (
+        embedder,
+        vector_repository,
+        graph_repository,
+        (primary_extractor, supplement_extractor),
+        reranker,
+    ) = await asyncio.gather(
+        embedder_task, vector_repository_task, graph_repository_task, entity_extractors_task, reranker_task
+    )
     graph_repository.ensure_constraints()
+
+    logger.info("Independent dependency checks (embedder/qdrant/neo4j/gliner/reranker) completed in %.2fs", time.perf_counter() - startup_start)
+
     metadata_repository = MetadataRepository(settings.metadata_db_url)
     await metadata_repository.init_models()
     bm25_index = Bm25Index()
 
     llm_provider = build_llm_provider(settings.llm_provider, settings.anthropic_api_key, settings.llm_model)
 
-    primary_extractor, supplement_extractor = build_entity_extractors(settings.gliner_model, settings.gliner_threshold)
     entity_validator = LlmEntityValidator(llm_provider, enabled=settings.enable_llm_entity_validation)
     entity_extraction_service = EntityExtractionService(primary_extractor, supplement_extractor, entity_validator)
 
     relation_extractor = build_relation_extractor()
     knowledge_graph_builder = KnowledgeGraphBuilder(graph_repository)
 
-    reranker = build_reranker(settings.reranker_model)
     graph_expansion = GraphExpansionStage(entity_extraction_service, graph_repository)
     retriever = HybridRetriever(embedder, vector_repository, bm25_index, graph_expansion, reranker)
 
@@ -163,6 +197,8 @@ async def lifespan(app: FastAPI):
     app.state.ml_explainer = Explainer()
     app.state.model_monitor = ModelMonitor(learning_repository)
     app.state.model_registry = ml_model_registry
+
+    logger.info("Application startup complete in %.2fs", time.perf_counter() - startup_start)
 
     yield
 

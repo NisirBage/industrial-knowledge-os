@@ -142,6 +142,10 @@ async def train_model(ml_task_type: str, payload: MLTrainRequest, request: Reque
     prediction_engine: PredictionEngine = request.app.state.prediction_engine
     prediction_engine.register_model(serving_task_type, ml_model)
 
+    cv_metrics: dict[str, float] | None = None
+    if payload.include_cross_validation:
+        cv_metrics = trainer.cross_validate(X, y, problem_type, n_splits=payload.cv_folds, random_state=payload.seed)
+
     return MLTrainingResultOut(
         model=_model_record_to_out(record),
         feature_importance=[FeatureImportanceOut(feature_name=f.feature_name, importance=f.importance) for f in feature_importance],
@@ -150,6 +154,8 @@ async def train_model(ml_task_type: str, payload: MLTrainRequest, request: Reque
         roc_curve=roc_points,
         sample_size=payload.sample_size,
         duration_seconds=round(time.perf_counter() - start, 4),
+        cross_validation_metrics=cv_metrics,
+        cross_validation_fold_count=payload.cv_folds if cv_metrics is not None else None,
     )
 
 

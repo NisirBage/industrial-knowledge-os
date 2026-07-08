@@ -57,6 +57,16 @@ recall, F1, ROC-AUC, PR-AUC, Brier score (classification); RMSE, MAE
 exposed on `TrainedModel` so downstream diagnostics (confusion matrix, ROC,
 calibration) never accidentally evaluate on training rows.
 
+**Cross-validation (v1.0.1)**: `SklearnTrainer.cross_validate()` is a
+separate method from `train()` — it fits a fresh estimator per fold
+(`StratifiedKFold` for classification, `KFold` for regression) and averages
+the same metrics, giving a variance-aware complement to the single-split
+point estimate. It's opt-in via `POST /ml/train/{task}`'s
+`include_cross_validation`/`cv_folds` fields (default off — it costs `k`
+additional model fits) and returned as a clearly separate
+`cross_validation_metrics` field alongside `model.metrics` (the held-out
+split), never merged into one number.
+
 ## 4. Model Registry
 
 [`SqlModelRegistry`](../../backend/app/ml/registry/repository.py) versions every

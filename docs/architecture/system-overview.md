@@ -98,7 +98,7 @@ flowchart LR
 4. **Independent subsystems.** M4/M5/M6 each add new FastAPI routes and
    `app.state` services without editing the M3 orchestrator.
 5. **No regressions, ever.** Every milestone's test suite is a strict superset
-   of the previous one's — 301 tests currently pass, zero have ever been
+   of the previous one's — 367 tests currently pass, zero have ever been
    deleted or weakened to make a later milestone easier.
 
 ## Where to go next

@@ -45,7 +45,7 @@ without ever risking regressing it. See
 [docs/contributing/adding-a-subsystem.md](../contributing/adding-a-subsystem.md).
 
 **How many tests are there, and do they actually all pass?**
-301, and yes — every milestone's test suite is a strict superset of the
+367, and yes — every milestone's test suite is a strict superset of the
 previous one's; nothing has ever been weakened or deleted to make a later
 milestone's tests pass. Run `pytest -q` from `backend/` yourself.
 

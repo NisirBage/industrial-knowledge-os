@@ -1,10 +1,10 @@
 # IKIOS — Industrial Knowledge Intelligence OS
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-301%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-75%25-yellow)
+![Tests](https://img.shields.io/badge/tests-367%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 
@@ -138,7 +138,7 @@ export. Details: [docs/architecture/research.md](docs/architecture/research.md).
 
 ```
 industrial-knowledge-os/
-├── backend/            # FastAPI app, all business logic, 301 tests
+├── backend/            # FastAPI app, all business logic, 367 tests
 │   ├── app/             # see docs/architecture/backend.md for the full map
 │   ├── tests/
 │   └── scripts/         # seed_demo_data.py, generate_benchmark_reports.py
@@ -169,8 +169,8 @@ reference: [docs/api/README.md](docs/api/README.md). Highlights:
 ```bash
 cd backend
 pip install -r requirements-dev.txt
-pytest -q                                       # 301 tests
-pytest -q --cov=app --cov-report=term-missing   # with coverage (75%)
+pytest -q                                       # 367 tests
+pytest -q --cov=app --cov-report=term-missing   # with coverage (96%, since v1.0.1's API-layer tests)
 ```
 
 Every milestone's test suite has been a strict superset of the previous

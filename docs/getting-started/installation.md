@@ -97,7 +97,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-301 tests should pass. See [docs/getting-started/quickstart.md](quickstart.md) to
+367 tests should pass. See [docs/getting-started/quickstart.md](quickstart.md) to
 try the app itself, or [docs/contributing/testing.md](../contributing/testing.md)
 for the test suite's structure.
 

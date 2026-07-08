@@ -4,6 +4,10 @@ from pydantic import BaseModel
 class MLTrainRequest(BaseModel):
     sample_size: int = 300
     seed: int = 42
+    # v1.0.1: off by default (extra training cost, k additional model fits) —
+    # opt in when you want a variance estimate on top of the held-out split.
+    include_cross_validation: bool = False
+    cv_folds: int = 5
 
 
 class FeatureImportanceOut(BaseModel):
@@ -44,6 +48,12 @@ class MLTrainingResultOut(BaseModel):
     roc_curve: list[RocPointOut]
     sample_size: int
     duration_seconds: float
+    # Distinct from `model.metrics` (a single held-out train/test split):
+    # the mean of the same metrics across `cv_folds` independent folds, a
+    # variance-aware complement to the point estimate. `None` unless the
+    # caller opted in via `include_cross_validation`.
+    cross_validation_metrics: dict[str, float] | None = None
+    cross_validation_fold_count: int | None = None
 
 
 class DriftRequest(BaseModel):

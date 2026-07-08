@@ -44,6 +44,34 @@ reasoning, contradiction detection, recommendations, predictions, ML Lab
 training, and the Research framework — none of them require the optional
 services above.
 
+## Startup performance
+
+The five fallback checks above (embedder, Qdrant, Neo4j, GLiNER, reranker)
+were originally attempted sequentially in `lifespan()`, each blocking the
+next. Since v1.0.1 they run concurrently via `asyncio.to_thread` +
+`asyncio.gather` — they're independent at construction time, so cold-start
+time is bounded by the slowest single check rather than their sum, in
+principle.
+
+**Honest measured results** (this development environment, all five checks
+falling back — no Docker, no models available):
+
+| Run | Sequential (pre-v1.0.1) | Concurrent (v1.0.1) |
+| --- | --- | --- |
+| 1 | ~25s | ~20s |
+| 2 | ~30s | ~20s |
+| 3 | ~31s | 38s (anomalous) |
+
+The concurrency change is real and measurable, but modest — roughly 20-35%
+faster on typical runs — not the 2-3x reduction a naive analysis would
+predict. All five checks are network-bound (HTTP/DNS resolution attempts to
+unreachable hosts, or Hugging Face Hub cache/lock contention when multiple
+model-loading attempts run at once), and their individual durations vary run
+to run more than they parallelize cleanly. One run measured 38s — slower
+than any sequential baseline — which is reported here rather than omitted:
+a benchmark that only shows the favorable runs is not a benchmark. Reported
+per the same "never fabricate" standard as [docs/benchmarks/](../benchmarks).
+
 ## Local development (Docker available)
 
 ```bash

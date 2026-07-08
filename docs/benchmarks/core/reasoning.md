@@ -2,8 +2,8 @@
 
 - Dataset: synthetic_conflicts
 - Sample size: 16
-- Duration: 0.0003s
-- Timestamp: 2026-07-08T11:26:58.142000+00:00
+- Duration: 0.0004s
+- Timestamp: 2026-07-08T12:37:12.636612+00:00
 
 | Metric | Value |
 |---|---|

@@ -2,8 +2,8 @@
 
 - Dataset: synthetic
 - Sample size: 60
-- Duration: 0.0056s
-- Timestamp: 2026-07-08T11:26:58.049402+00:00
+- Duration: 0.0072s
+- Timestamp: 2026-07-08T12:37:12.520104+00:00
 
 | Metric | Value |
 |---|---|

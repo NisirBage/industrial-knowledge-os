@@ -3,17 +3,37 @@
 ```bash
 cd backend
 pip install -r requirements-dev.txt
-pytest -q                                        # all 301 tests
+pytest -q                                        # all tests
 pytest -q --cov=app --cov-report=term-missing     # with coverage
 pytest -q tests/test_ml_trainer.py                # one file
+pytest -q tests/test_api_ml.py                    # one API-layer file
 ```
 
 ## How the suite is organized
 
 One test file per subsystem, named after the module it covers
-(`test_ml_trainer.py` ↔ `app/ml/training/trainer.py`). No shared
-`conftest.py` — each test file is self-contained with small local fixture
-functions (e.g. `_feature_vector()`, `_registry(tmp_path)`).
+(`test_ml_trainer.py` ↔ `app/ml/training/trainer.py`). Business-logic test
+files are self-contained with small local fixture functions (e.g.
+`_feature_vector()`, `_registry(tmp_path)`) and share no `conftest.py`.
+
+## API-layer tests (v1.0.1)
+
+`tests/test_api_*.py` (one file per router) use a shared, **session-scoped**
+`client` fixture in `tests/conftest.py` — a real `TestClient` wrapping the
+actual `create_app()`, running the full composition-root `lifespan()` exactly
+once for the whole test session, against temporary/ephemeral storage (never
+a developer's real `ikios_*.db` files). This is what closed the "zero
+automated tests exercise the HTTP layer" gap identified in the v1.0.0 audit:
+every route now has at least one happy-path test and one 4xx-path test,
+verifying request validation, status codes, and response shape — not just the
+business logic underneath, which the rest of the suite already covered
+thoroughly.
+
+Because the fixture is session-scoped, state accumulates across API test
+files within one run (a document uploaded in `test_api_documents.py` is
+visible to a later test in the same session) — write new API tests to assert
+on what *they* create or on qualitative response shape, not on exact global
+counts that other tests could affect.
 
 ## Patterns used throughout
 
@@ -29,11 +49,12 @@ functions (e.g. `_feature_vector()`, `_registry(tmp_path)`).
 - **No mocking of scikit-learn** — training tests fit real estimators on real
   (synthetic) data and assert on real computed metrics, including a
   "beats a naive baseline" check, not just "didn't crash."
-- **Route handlers are verified live, not via `TestClient`.** Every
-  milestone's engines/repositories are unit-tested exhaustively; the FastAPI
-  route layer itself is verified by starting the real server and driving it
-  from a browser/HTTP client during that milestone's release process (see
-  each milestone's section in [docs/RELEASE_REPORT.md](../RELEASE_REPORT.md)).
+- **Route handlers are covered by `TestClient` tests (`test_api_*.py`,
+  added in v1.0.1)** in addition to live manual verification during each
+  milestone's release process (see each milestone's section in
+  [docs/RELEASE_REPORT.md](../RELEASE_REPORT.md)) — engines/repositories are
+  unit-tested exhaustively, and the HTTP boundary now has automated
+  regression coverage too.
 
 ## The one rule that matters most
 

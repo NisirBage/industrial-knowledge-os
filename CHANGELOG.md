@@ -6,6 +6,61 @@ All notable changes to IKIOS are documented here. Format loosely follows
 development milestone rather than individual commits, since each milestone
 is the unit of "no regressions, tests pass" verification this project uses.
 
+## [1.0.1] — Hardening Sprint
+
+Fixes every finding from an independent Principal AI Architect audit
+performed against v1.0.0. No new AI capability; no breaking API changes.
+
+### Fixed
+- **Contradiction detection precision**: rewrote `ContradictionDetector` to
+  associate tag mentions with the sentence they appear in (not the whole
+  evidence chunk) and deduplicate by `(tag, antonym pair)` instead of by
+  chunk-pair combination — a single real disagreement repeated across
+  duplicate/near-duplicate evidence no longer reports dozens of
+  "contradictions." 5 new regression tests.
+- **Unsupported upload file types** now return `422` with the supported
+  extension list instead of an unhandled `500`.
+- **Oversized uploads** now return `413` — `/documents/upload` streams and
+  checks size against a configurable `MAX_UPLOAD_SIZE_MB` (default 25MB)
+  before buffering the full file.
+
+### Added
+- **HTTP/API-layer test suite**: 49 new `TestClient` tests
+  (`backend/tests/test_api_*.py`, shared session-scoped fixture in
+  `tests/conftest.py`) covering every router's happy and error paths.
+  Backend coverage: 75% → 96%.
+- **Indirect prompt-injection hardening**: document-derived content reaching
+  the LLM narrator (`app/narration/narrator.py`) and recommendation
+  justification refinement (`app/recommendation/engine.py`) is now wrapped
+  in `<retrieved_evidence>`/`<justifications>` delimiters, with both system
+  prompts explicitly instructing the model never to follow instructions
+  embedded in that content. 4 new regression tests verifying the delimiter
+  framing and system-prompt language.
+- **Cross-validation metrics**: `SklearnTrainer.cross_validate()` (k-fold,
+  stratified for classification), exposed as an opt-in
+  `include_cross_validation`/`cv_folds` field on `POST /ml/train/{task}`,
+  returned as a separate `cross_validation_metrics` field — never merged
+  with the held-out split's `model.metrics`. 7 new tests.
+- **Concurrent startup**: the five independent dependency checks (embedder,
+  Qdrant, Neo4j, GLiNER, reranker) in `lifespan()` now run concurrently via
+  `asyncio.to_thread` + `asyncio.gather` instead of sequentially. Measured
+  improvement: ~20s vs. ~25-31s in this environment (modest, not the
+  larger theoretical best case — see
+  [docs/architecture/deployment.md#startup-performance](docs/architecture/deployment.md#startup-performance)).
+
+### Changed
+- `docs/api/README.md`'s error-handling section now documents every 4xx/5xx
+  code with its trigger condition, including the new `413`.
+- `docs/benchmarks/README.md` leads with an explicit methodology/ground-truth
+  section (single-relevant-document-per-query, single-chunk synthetic
+  ingestion, environment-dependent results) instead of trailing notes only.
+- `SECURITY.md` documents the v1.0.1 hardening and its honest limits (a
+  mitigation, not a guarantee, against prompt injection).
+- Expanded `backend/.env.example` with `MAX_UPLOAD_SIZE_MB`.
+
+### Testing
+367 tests pass (up from 302), zero regressions.
+
 ## [1.0.0] — RC1: Enterprise Productization & Open Source Release
 
 No new AI capability — this release turns the platform into a polished,

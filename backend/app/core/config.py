@@ -36,9 +36,17 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
+    # v1.0.1 hardening: unbounded uploads were a real memory-exhaustion risk
+    # (audit finding M1) — reject anything over this before it's buffered.
+    max_upload_size_mb: int = 25
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def max_upload_size_bytes(self) -> int:
+        return self.max_upload_size_mb * 1024 * 1024
 
 
 @lru_cache

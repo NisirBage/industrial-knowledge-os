@@ -19,6 +19,10 @@ All request/response bodies are validated Pydantic schemas — see
 | POST | `/documents/upload` | Multipart file upload — runs the full ingestion pipeline synchronously (chunk → embed → extract entities/relations → update graph) |
 | GET | `/documents` | List ingested documents with chunk/entity counts |
 
+Supported extensions: `.pdf`, `.txt`, `.md` (unsupported → `422`). Max upload
+size: `MAX_UPLOAD_SIZE_MB` (default 25MB; oversized → `413`) — see
+[docs/getting-started/configuration.md](../getting-started/configuration.md).
+
 ## Chat (reasoning)
 
 | Method | Path | Description |
@@ -90,13 +94,35 @@ Valid `ml_task_type` values with a trainable synthetic generator today:
 [docs/architecture/ml-lab.md](../architecture/ml-lab.md#1-training-dataset-builder)
 for why the other five `MLTaskType` values return `400` today.
 
+`POST /ml/train/{ml_task_type}` request body (all fields optional):
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `sample_size` | 300 | Synthetic training rows to generate |
+| `seed` | 42 | Deterministic dataset + split seed |
+| `include_cross_validation` | `false` | Also compute k-fold cross-validated metrics (costs `k` extra model fits) |
+| `cv_folds` | 5 | Fold count when `include_cross_validation` is `true` |
+
+The response's `model.metrics` is always a single held-out train/test split;
+`cross_validation_metrics`/`cross_validation_fold_count` are `null` unless
+`include_cross_validation` was set — the two are never merged into one
+number. See [docs/architecture/ml-lab.md](../architecture/ml-lab.md#3-model-training-framework).
+
 ## Error handling
 
-- `422 Unprocessable Entity` — invalid enum value (e.g. unknown `task_type`),
-  with the valid options listed in the error detail.
-- `400 Bad Request` — a syntactically valid but not-yet-trainable
-  `ml_task_type`.
-- `404 Not Found` — unknown resource id (e.g. `model_id`, `experiment_id`).
-- `500` is never used to mask a real error being hidden by a fallback —
-  degraded dependencies (Qdrant/Neo4j/GLiNER/reranker) fail over automatically
-  at startup instead; see [docs/architecture/deployment.md](../architecture/deployment.md).
+Every 4xx response body is `{"detail": "..."}` (FastAPI's default shape),
+with the detail message naming valid options wherever the request named an
+invalid enum value — never just "invalid input."
+
+| Code | Meaning | Where it's used |
+| --- | --- | --- |
+| `422 Unprocessable Entity` | Request failed schema validation, OR named an unknown enum value (`task_type`, `kind`, `ml_task_type`), OR an unsupported file extension on upload | Every route with a request body; `/documents/upload` |
+| `400 Bad Request` | Syntactically valid request that isn't actionable right now — a not-yet-trainable `ml_task_type`, or a benchmark that needs live data rather than a fresh synthetic dataset | `/ml/train/{ml_task_type}`, `/research/benchmarks/{benchmark_name}/run` |
+| `404 Not Found` | Unknown resource id | `/ml/models/{model_id}`, `/research/experiments/{experiment_id}` |
+| `405 Method Not Allowed` | Wrong HTTP verb for the path (FastAPI default) | Any route called with an unsupported method |
+| `413 Payload Too Large` | Upload exceeds `MAX_UPLOAD_SIZE_MB` (checked while streaming, before the full file is buffered) | `/documents/upload` |
+| `500` | Never used to mask a real error behind a fallback — degraded dependencies (Qdrant/Neo4j/GLiNER/reranker) fail over automatically at startup instead; see [docs/architecture/deployment.md](../architecture/deployment.md). A `500` here means an actual unhandled bug — please [report it](../../SUPPORT.md). | N/A by design |
+
+All of the above are covered by automated `TestClient` tests in
+`backend/tests/test_api_*.py` — see
+[docs/contributing/testing.md](../contributing/testing.md#api-layer-tests-v101).
