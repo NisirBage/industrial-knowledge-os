@@ -1,0 +1,29 @@
+{
+  "benchmark_name": "hybrid_retrieval",
+  "metrics": [
+    {
+      "name": "precision",
+      "value": 0.2
+    },
+    {
+      "name": "recall",
+      "value": 1.0
+    },
+    {
+      "name": "f1",
+      "value": 0.3333
+    },
+    {
+      "name": "recall_at_5",
+      "value": 1.0
+    },
+    {
+      "name": "ndcg",
+      "value": 0.9514
+    }
+  ],
+  "duration_seconds": 0.09181060001719743,
+  "dataset_name": "synthetic_queries",
+  "sample_size": 60,
+  "timestamp": "2026-07-08T11:26:58.141522+00:00"
+}

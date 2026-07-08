@@ -1,0 +1,26 @@
+Equipment History — Pump P-101
+
+Equipment Tag: P-101
+Type: Centrifugal Transfer Pump
+Manufacturer: Sundyne
+Model: LMV-311
+Location: Unit 3, Rotating Equipment Bay
+Installed: 2019
+Upstream isolation valve: V-2201A
+Criticality: High (single point of transfer for Unit 3 feed line)
+
+History summary:
+
+- 2019: Installed, commissioned per OEM spec.
+- 2021-08: First bearing replacement (routine, per OEM 2,000-hour interval).
+- 2024-01-15: Routine maintenance, lubrication service.
+- 2024-03-02: Unscheduled inspection following operator noise report; bearing
+  wear detected.
+- 2024-03-10: Quarterly inspection per API 610; bearing wear confirmed,
+  replacement recommended within 30 days.
+- 2024-03-22: Unplanned trip on high vibration; root cause traced to Valve
+  V-2201A being closed by an adjacent crew without updating the shared log.
+  Bearing replaced same day.
+
+Related equipment: Valve V-2201A (upstream isolation), Motor M-101 (drive
+motor, direct-coupled).

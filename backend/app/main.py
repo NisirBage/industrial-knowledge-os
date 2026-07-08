@@ -14,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.agents.evidence_fusion_agent import EvidenceFusionAgent
 from app.agents.knowledge_graph_agent import KnowledgeGraphAgent
 from app.agents.planner import PlannerAgent
-from app.agents.recommendation_agent import RecommendationAgent
 from app.agents.reasoning_agent import ReasoningAgent
+from app.agents.recommendation_agent import RecommendationAgent
 from app.agents.report_agent import ReportAgent
 from app.agents.retrieval_agent import RetrievalAgent
 from app.agents.verifier_agent import VerifierAgent
@@ -29,8 +29,8 @@ from app.entity_extraction.llm_validator import LlmEntityValidator
 from app.entity_extraction.service import EntityExtractionService
 from app.evidence.fusion import EvidenceFusionEngine
 from app.evidence.graph import EvidenceGraphBuilder
-from app.feedback.engine import FeedbackEngine
 from app.features.extractor import RuleBasedFeatureExtractor
+from app.feedback.engine import FeedbackEngine
 from app.graph.knowledge_graph_builder import KnowledgeGraphBuilder
 from app.ml.explainability.explainer import Explainer
 from app.ml.feature_store.store import FeatureStore

@@ -195,3 +195,91 @@ export async function getCalibration(): Promise<{ buckets: CalibrationBucket[] }
   const response = await fetch(`${API_BASE_URL}/research/calibration`);
   return handleResponse<{ buckets: CalibrationBucket[] }>(response);
 }
+
+// --- ML Laboratory (M6) ---
+
+export interface FeatureImportance {
+  feature_name: string;
+  importance: number;
+}
+
+export interface CalibrationPoint {
+  predicted_probability: number;
+  observed_frequency: number;
+}
+
+export interface RocPoint {
+  fpr: number;
+  tpr: number;
+}
+
+export interface ModelRecord {
+  model_id: string;
+  task_type: string;
+  algorithm: string;
+  training_data_hash: string;
+  hyperparameters: Record<string, string>;
+  metrics: Record<string, number>;
+  feature_schema: string[];
+  timestamp: string;
+  author: string;
+  experiment_id: string | null;
+  serialization_path: string;
+  serialization_format: string;
+}
+
+export interface MLTrainingResult {
+  model: ModelRecord;
+  feature_importance: FeatureImportance[];
+  calibration_curve: CalibrationPoint[];
+  confusion_matrix: number[][] | null;
+  roc_curve: RocPoint[];
+  sample_size: number;
+  duration_seconds: number;
+}
+
+export interface FeatureDefinition {
+  name: string;
+  description: string;
+  source: string;
+  owner: string;
+  datatype: string;
+  version: string;
+  generation_time: string;
+}
+
+export interface DriftResult {
+  psi: number;
+  severity: string;
+}
+
+export const TRAINABLE_ML_TASKS = ["failure_prediction", "maintenance_priority"] as const;
+
+export async function trainModel(taskType: string, sampleSize = 300, seed = 42): Promise<MLTrainingResult> {
+  const response = await fetch(`${API_BASE_URL}/ml/train/${taskType}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sample_size: sampleSize, seed }),
+  });
+  return handleResponse<MLTrainingResult>(response);
+}
+
+export async function listModels(taskType?: string): Promise<ModelRecord[]> {
+  const url = taskType ? `${API_BASE_URL}/ml/models?task_type=${taskType}` : `${API_BASE_URL}/ml/models`;
+  const response = await fetch(url);
+  return handleResponse<ModelRecord[]>(response);
+}
+
+export async function getFeatureDefinitions(): Promise<FeatureDefinition[]> {
+  const response = await fetch(`${API_BASE_URL}/ml/feature-definitions`);
+  return handleResponse<FeatureDefinition[]>(response);
+}
+
+export async function computeDrift(baseline: number[], recent: number[]): Promise<DriftResult> {
+  const response = await fetch(`${API_BASE_URL}/ml/drift`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseline, recent }),
+  });
+  return handleResponse<DriftResult>(response);
+}

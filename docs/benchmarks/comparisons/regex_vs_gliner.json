@@ -1,0 +1,14 @@
+{
+  "arm_a_name": "regex_only",
+  "arm_b_name": "production_gliner_regex",
+  "metric_name": "f1",
+  "mean_a": 0.575,
+  "mean_b": 0.575,
+  "mean_delta": 0.0,
+  "t_statistic": 0.0,
+  "p_value": 1.0,
+  "winner": "tie",
+  "sample_size": 60,
+  "gliner_available": false,
+  "note": "GLiNER failed to load in this environment \u2014 arm_b silently fell back to regex-only too, so this run's result is regex-vs-regex (an expected tie), not a real GLiNER comparison. Re-run where GLiNER can load for a genuine result."
+}

@@ -14,12 +14,12 @@ import math
 from dataclasses import dataclass
 
 from app.embeddings.embedder import Embedder
+from app.repositories.vector_repository import VectorRepository
+from app.retrieval.bm25_index import Bm25Index
 from app.retrieval.evidence import Evidence
 from app.retrieval.graph_expansion import GraphExpansionStage
 from app.retrieval.intent import classify_intent
 from app.retrieval.reranker import Reranker
-from app.repositories.vector_repository import VectorRepository
-from app.retrieval.bm25_index import Bm25Index
 
 _RRF_K = 60
 _GRAPH_DOCUMENT_BOOST = 0.15

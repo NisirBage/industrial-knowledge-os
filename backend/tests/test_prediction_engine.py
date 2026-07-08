@@ -99,3 +99,54 @@ async def test_custom_model_can_replace_rule_based_model_without_interface_chang
 
     assert prediction.value == 0.99
     assert prediction.confidence == 0.99
+
+
+class _StubMLModel:
+    task_type = PredictionTaskType.FAILURE_RISK
+
+    def predict(self, features: EquipmentFeatureVector) -> PredictionResult:
+        return PredictionResult(
+            value=0.7, confidence=0.8, explanation="ML model", uncertainty=0.2, model_version="RandomForestClassifier:abcd1234"
+        )
+
+
+async def test_register_model_swaps_in_a_new_model_at_runtime():
+    learning_repo = _RecordingLearningRepository()
+    engine = PredictionEngine(_FakeFeatureExtractor(), build_rule_based_models(), learning_repo)
+
+    engine.register_model(PredictionTaskType.FAILURE_RISK, _StubMLModel())
+    prediction = await engine.predict("P-101", PredictionTaskType.FAILURE_RISK)
+
+    assert prediction.value == 0.7
+    assert prediction.confidence == 0.8
+
+
+async def test_register_model_prediction_reports_uncertainty_and_model_version():
+    learning_repo = _RecordingLearningRepository()
+    engine = PredictionEngine(_FakeFeatureExtractor(), build_rule_based_models(), learning_repo)
+
+    engine.register_model(PredictionTaskType.FAILURE_RISK, _StubMLModel())
+    prediction = await engine.predict("P-101", PredictionTaskType.FAILURE_RISK)
+
+    assert prediction.uncertainty == 0.2
+    assert prediction.model_version == "RandomForestClassifier:abcd1234"
+
+
+async def test_register_model_uses_model_version_as_recorded_model_name():
+    learning_repo = _RecordingLearningRepository()
+    engine = PredictionEngine(_FakeFeatureExtractor(), build_rule_based_models(), learning_repo)
+
+    engine.register_model(PredictionTaskType.FAILURE_RISK, _StubMLModel())
+    await engine.predict("P-101", PredictionTaskType.FAILURE_RISK)
+
+    assert learning_repo.predictions[0]["model_name"] == "RandomForestClassifier:abcd1234"
+
+
+async def test_rule_based_predictions_leave_uncertainty_and_model_version_unset():
+    learning_repo = _RecordingLearningRepository()
+    engine = PredictionEngine(_FakeFeatureExtractor(), build_rule_based_models(), learning_repo)
+
+    prediction = await engine.predict("P-101", PredictionTaskType.FAILURE_RISK)
+
+    assert prediction.uncertainty is None
+    assert prediction.model_version is None

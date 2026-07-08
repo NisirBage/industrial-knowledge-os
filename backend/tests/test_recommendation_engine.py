@@ -70,6 +70,23 @@ def test_contradiction_produces_recommendation_citing_conflicting_evidence():
     assert bundle.recommendations[0].priority == Priority.HIGH
 
 
+def test_multiple_contradictions_on_the_same_evidence_pair_get_unique_recommendation_ids():
+    contradiction = Contradiction(
+        conflicting_evidence=["c1", "c2"],
+        confidence=0.6,
+        severity=Severity.HIGH,
+        resolution_strategy="verify",
+        recommended_clarification="Confirm valve state",
+    )
+    engine = RecommendationEngine(_EchoLLMProvider())
+
+    bundle = engine.generate(ReasoningGraph(nodes=[], edges=[], summary=""), [contradiction, contradiction])
+
+    assert len(bundle.recommendations) == 2
+    ids = {r.id for r in bundle.recommendations}
+    assert len(ids) == 2
+
+
 def test_refinement_failure_falls_back_to_rule_generated_justification():
     engine = RecommendationEngine(_EchoLLMProvider())
     bundle = engine.generate(_risk_graph(), [])

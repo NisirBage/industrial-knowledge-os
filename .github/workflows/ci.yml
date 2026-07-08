@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-lint:
+    name: Backend / Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r backend/requirements-dev.txt
+      - run: ruff check backend/app backend/tests
+        working-directory: .
+
+  backend-format:
+    name: Backend / Format (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r backend/requirements-dev.txt
+      # Advisory only: this codebase intentionally keeps related fields/args
+      # on one line for readability in places ruff's formatter would split.
+      # We surface formatting drift without blocking merges on it.
+      - run: ruff format --check backend/app
+
+  backend-test:
+    name: Backend / Tests (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r backend/requirements-dev.txt
+      - run: pytest -q --cov=app --cov-report=term-missing --cov-report=xml
+        working-directory: backend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+
+  frontend:
+    name: Frontend / Lint + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

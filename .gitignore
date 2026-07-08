@@ -6,6 +6,11 @@ venv/
 *.egg-info/
 .pytest_cache/
 *.db
+.qdrant_local/
+.ml_models/
+coverage.xml
+.coverage
+htmlcov/
 
 # Node
 node_modules/

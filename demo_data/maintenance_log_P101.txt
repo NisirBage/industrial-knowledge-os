@@ -1,0 +1,29 @@
+Maintenance Log — Pump P-101
+
+Date: 2024-01-15
+Technician: R. Alvarez
+Department: Rotating Equipment Maintenance
+
+Routine scheduled maintenance performed on Pump P-101 (centrifugal transfer
+pump, Manufacturer: Sundyne). Bearing housing lubrication replaced. Coupling
+alignment checked and found within tolerance. Vibration reading recorded at
+2.1 mm/s RMS, within acceptable range.
+
+Valve V-2201A (upstream isolation valve for P-101) was inspected during this
+visit and confirmed CLOSED for the duration of maintenance, per lockout-tagout
+procedure. Valve was reopened at the conclusion of work and confirmed OPEN
+before pump restart.
+
+Next scheduled maintenance: 2024-04-15.
+
+---
+
+Maintenance Log — Pump P-101
+
+Date: 2024-03-02
+Technician: R. Alvarez
+
+Unscheduled inspection following operator report of elevated noise. Bearing
+wear detected on the drive-end bearing of P-101, consistent with early-stage
+degradation. Recommend replacement at next scheduled window. Vibration
+reading: 4.6 mm/s RMS — above the 3.5 mm/s alert threshold.

@@ -1,0 +1,25 @@
+{
+  "benchmark_name": "reasoning",
+  "metrics": [
+    {
+      "name": "precision",
+      "value": 1.0
+    },
+    {
+      "name": "recall",
+      "value": 1.0
+    },
+    {
+      "name": "f1",
+      "value": 1.0
+    },
+    {
+      "name": "contradictions_detected",
+      "value": 8.0
+    }
+  ],
+  "duration_seconds": 0.00031609999132342637,
+  "dataset_name": "synthetic_conflicts",
+  "sample_size": 16,
+  "timestamp": "2026-07-08T11:26:58.142000+00:00"
+}

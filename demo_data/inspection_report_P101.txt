@@ -1,0 +1,27 @@
+Inspection Report — Pump P-101 / Valve V-2201A
+
+Inspection Date: 2024-03-10
+Inspector: M. Okonkwo (Certified Mechanical Inspector)
+Standard Reference: API 610 (Centrifugal Pumps for Petroleum Industry)
+
+Scope: Quarterly mechanical integrity inspection of Pump P-101 and its
+upstream isolation valve V-2201A.
+
+Findings:
+
+1. Pump P-101 drive-end bearing shows measurable wear consistent with the
+   March 2024 maintenance log entry. Vibration signature confirms elevated
+   amplitude at the bearing pass frequency. Recommend bearing replacement
+   within 30 days.
+
+2. Valve V-2201A was found in the OPEN position at the time of inspection,
+   consistent with normal operating configuration. No leakage observed at the
+   valve seat.
+
+3. No corrosion or external damage observed on either asset.
+
+Compliance status: P-101 and V-2201A both comply with API 610 inspection
+interval requirements. Next inspection due: 2024-06-10.
+
+Inspector recommendation: Schedule bearing replacement for P-101 before the
+next quarterly inspection to avoid unplanned downtime.

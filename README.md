@@ -1,60 +1,217 @@
-# Industrial Knowledge Intelligence OS (IKIOS)
+# IKIOS — Industrial Knowledge Intelligence OS
 
-AI-powered Industrial Knowledge Intelligence platform — ET AI Hackathon 2026,
-Problem Statement 8. See [CLAUDE.md](CLAUDE.md) for full architecture, vision,
-and milestone plan.
+![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
+![Tests](https://img.shields.io/badge/tests-301%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-75%25-yellow)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Python](https://img.shields.io/badge/python-3.13-blue)
+![Node](https://img.shields.io/badge/node-20%2B-blue)
 
-## MVP scope
+**Not a chatbot. Not "chat with PDF."** IKIOS is a seven-layer industrial AI
+platform: it ingests heterogeneous documents, builds a persistent knowledge
+graph, reasons over evidence with explicit contradiction detection, generates
+justified recommendations, learns from feedback, trains real machine learning
+models, and exposes a full research/benchmarking framework — chat is the
+surface, not the architecture.
 
-Ingestion (PDF/TXT/MD) → chunking → embeddings (Qdrant) + entity extraction
-(Neo4j) → hybrid retrieval (BM25 + vector + graph boost) → LangGraph agent
-orchestration (Planner → Retrieval → Maintenance → Reasoning) → cited, evidence-backed
-chat answers. Frontend: upload + chat UI.
+Built for the **ET AI Hackathon 2026** — Problem Statement 8: *"AI for
+Industrial Knowledge Intelligence: Unified Asset & Operations Brain."*
 
-## Run it
+## Problem statement
 
-### 1. Start infra
+Industrial organizations accumulate maintenance logs, inspection reports,
+incident reports, OEM manuals, SOPs, and compliance records across years of
+operation — scattered, unstructured, and effectively unsearchable at the
+moment an engineer needs to answer "why does this pump keep failing, and what
+should I do about it?" IKIOS turns that document pile into a queryable,
+reasoning knowledge system that cites its sources, flags when sources
+disagree, and predicts what's likely to happen next.
+
+## Why this is more than RAG
+
+| Layer | What it does |
+| --- | --- |
+| Document Ingestion | Chunking, embeddings, entity/relation extraction |
+| Knowledge Graph | 24-label ontology, 15 relation types, persistent graph |
+| Hybrid Retrieval | BM25 + vector + graph expansion + cross-encoder reranking |
+| Agentic Reasoning | 8-stage LangGraph pipeline: plan → retrieve → fuse evidence → reason → recommend → verify → narrate |
+| Learning Layer | Timeline reconstruction, rule-based prediction, feedback loop |
+| Research Framework | Real benchmarks, reproducible experiments, A/B testing |
+| ML Laboratory | Real scikit-learn training, model registry, explainability, drift monitoring |
+
+Every claim in a Chat answer traces back to a cited document chunk.
+Contradictions across sources are surfaced explicitly, never silently
+resolved. See [docs/architecture/README.md](docs/architecture/README.md) for
+the full picture with diagrams.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Document Ingestion] --> B[Knowledge Graph]
+    B --> C[Hybrid Retrieval]
+    C --> D[8-Stage Reasoning<br/>LangGraph Orchestrator]
+    D --> E[Learning Layer]
+    E --> F[Research Framework]
+    E --> G[ML Laboratory]
+    G -.trained models swap into.-> E
+```
+
+Full diagrams for every subsystem: [docs/architecture/](docs/architecture/README.md).
+
+## Screenshots
+
+Live workspace screenshots and a walkthrough GIF are in
+[docs/showcase/README.md](docs/showcase/README.md) — the four workspaces
+(Chat, Documents, Research, ML Lab) captured against the real running app and
+the [demo dataset](demo_data/README.md).
+
+## Technology stack
+
+**Backend:** Python 3.13, FastAPI, LangGraph, SQLAlchemy (async), scikit-learn,
+pandas, Neo4j driver, Qdrant client, GLiNER, sentence-transformers.
+**Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Recharts.
+**Infra:** Docker Compose (Qdrant + Neo4j), SQLite (metadata/learning/
+experiment/ML-registry stores).
+
+## Installation
+
+```bash
+git clone https://github.com/NisirBage/industrial-knowledge-os.git
+cd industrial-knowledge-os
+./setup.sh      # or .\setup.ps1 on Windows
+./run-dev.sh    # or .\run-dev.ps1 — starts backend (:8000) + frontend (:5173)
+```
+
+No Docker, no API key, and no downloaded ML model are required — every
+optional dependency falls back automatically (see
+[docs/architecture/deployment.md](docs/architecture/deployment.md)). Full
+walkthrough: [docs/getting-started/installation.md](docs/getting-started/installation.md).
+
+## Quick start
+
+```bash
+cd backend && python scripts/seed_demo_data.py
+```
+
+Then open http://localhost:5173 and ask: *"What is the failure history of
+P-101?"* — see [docs/getting-started/quickstart.md](docs/getting-started/quickstart.md)
+for the full four-workspace tour.
+
+## Usage
+
+- **Chat** — ask a question, get a cited, evidence-backed, reasoned answer
+- **Documents** — upload PDF/TXT/MD, see it ingested (chunks, entities, relations) in real time
+- **Research** — run benchmarks and A/B tests on demand, view experiment history
+- **ML Lab** — train a real scikit-learn model, view its ROC/calibration/confusion matrix, browse the model registry
+
+Full API reference: [docs/api/README.md](docs/api/README.md).
+
+## Benchmarks
+
+Real, reproducible benchmark reports (not hand-typed numbers) live in
+[docs/benchmarks/README.md](docs/benchmarks/README.md), generated by
+`backend/scripts/generate_benchmark_reports.py`. Covers entity/relation
+extraction, knowledge graph coverage, hybrid retrieval, reasoning,
+recommendations, predictions, timelines, plus dedicated comparisons: regex
+vs. GLiNER, vector-only vs. hybrid vs. graph-aware retrieval, and rule-based
+vs. ML prediction — including honest caveats where a result needs one (e.g.
+GLiNER's availability in a given environment).
+
+## ML Laboratory
+
+Seven subsystems — Training Dataset Builder, Feature Store, Model Training
+Framework, Model Registry, Inference Engine, Explainability, Model
+Monitoring — turning rule-based prediction into real, trained, explainable
+machine learning without ever touching the reasoning pipeline. Details:
+[docs/architecture/ml-lab.md](docs/architecture/ml-lab.md).
+
+## Research Framework
+
+Experiment tracking (with git-commit auto-capture), 8 benchmark runners
+against the real production components, a synthetic dataset generator with
+noise injection, paired A/B testing, and JSON/CSV/Markdown/HTML report
+export. Details: [docs/architecture/research.md](docs/architecture/research.md).
+
+## Folder structure
 
 ```
-docker compose up -d
+industrial-knowledge-os/
+├── backend/            # FastAPI app, all business logic, 301 tests
+│   ├── app/             # see docs/architecture/backend.md for the full map
+│   ├── tests/
+│   └── scripts/         # seed_demo_data.py, generate_benchmark_reports.py
+├── frontend/            # React + Vite, 4 workspaces
+├── demo_data/           # curated demo dataset + ground truth
+├── docs/                # documentation portal (this is the map)
+├── docker-compose.yml   # Qdrant + Neo4j (optional — see fallback modes)
+├── setup.{sh,ps1}, run-dev.{sh,ps1}, run-prod.{sh,ps1}
+└── CHANGELOG.md, RELEASE_NOTES.md, VERSION
 ```
 
-Starts Qdrant (`:6333`) and Neo4j (`:7474` browser / `:7687` bolt).
+## API overview
 
-No Docker available? The backend falls back automatically: Qdrant runs in
-embedded local-file mode, and the knowledge graph runs in-memory (not
-persisted across restarts). Semantic search and chat still work fully; only
-graph persistence and cross-session entity boosting are reduced.
+Base URL `http://localhost:8000/api/v1`, interactive docs at `/docs`. Full
+reference: [docs/api/README.md](docs/api/README.md). Highlights:
 
-### 2. Backend
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /chat` | Reasoned, cited answer via the 8-stage pipeline |
+| `POST /documents/upload` | Full ingestion pipeline |
+| `GET /equipment/{tag}/timeline` | Reconstructed event history |
+| `POST /predictions` | Rule-based or trained-ML prediction |
+| `POST /research/benchmarks/{name}/run` | Run a benchmark now |
+| `POST /ml/train/{task}` | Train a real scikit-learn model, hot-swap it live |
 
-```
+## Testing
+
+```bash
 cd backend
-pip install -r requirements.txt
-copy .env.example .env
-uvicorn app.main:app --reload --port 8000
+pip install -r requirements-dev.txt
+pytest -q                                       # 301 tests
+pytest -q --cov=app --cov-report=term-missing   # with coverage (75%)
 ```
 
-Runs with `LLM_PROVIDER=mock` by default (no API key needed) — set
-`LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in `.env` for real generated
-answers.
+Every milestone's test suite has been a strict superset of the previous
+one's — nothing has ever been weakened or deleted to make a later milestone
+pass. See [docs/contributing/testing.md](docs/contributing/testing.md).
 
-Tests: `pytest` (from `backend/`).
+## Performance
 
-### 3. Frontend
+Benchmarked latencies and retrieval/prediction accuracy are in
+[docs/benchmarks/README.md](docs/benchmarks/README.md) — e.g. hybrid
+retrieval reaches recall@5 = 1.0 on the synthetic benchmark query set,
+comfortably ahead of vector-only search (0.8), and a trained
+`RandomForestClassifier` reaches ~81% accuracy on the synthetic
+failure-prediction task (competitive with, not dramatically better than, the
+rule-based baseline — an honest finding, not a cherry-picked one).
 
-```
-cd frontend
-npm install
-copy .env.example .env
-npm run dev
-```
+## Future work
 
-Open http://localhost:5173 — upload a document, then ask a question in Chat.
+OCR/DOCX/XLSX ingestion, Postgres/Redis/MinIO, real historical training
+labels, SHAP integration, XGBoost/LightGBM/PyTorch trainers, authentication —
+see [docs/roadmap/README.md](docs/roadmap/README.md) for the full,
+honest list (every item there is a documented extension point, not a
+guess).
 
-## API
+## Documentation
 
-- `POST /api/v1/documents/upload` — multipart file upload, runs full ingestion pipeline
-- `GET /api/v1/documents` — list ingested documents
-- `POST /api/v1/chat` — `{"query": "..."}` → cited, evidence-backed answer
-- `GET /api/v1/health`
+Start here: [docs/getting-started/README.md](docs/getting-started/README.md) →
+[docs/architecture/README.md](docs/architecture/README.md) →
+[docs/faq/README.md](docs/faq/README.md). Full technical history of how this
+platform evolved across seven milestones: [docs/RELEASE_REPORT.md](docs/RELEASE_REPORT.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and feature requests use
+the templates in [.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE).
+
+## Contributors
+
+Built solo by [NisirBage](https://github.com/NisirBage) for the ET AI
+Hackathon 2026.
+
+## License
+
+[MIT](LICENSE).

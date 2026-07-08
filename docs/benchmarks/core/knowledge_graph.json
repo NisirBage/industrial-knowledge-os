@@ -1,0 +1,29 @@
+{
+  "benchmark_name": "knowledge_graph",
+  "metrics": [
+    {
+      "name": "node_count",
+      "value": 111.0
+    },
+    {
+      "name": "edge_count",
+      "value": 66.0
+    },
+    {
+      "name": "average_degree",
+      "value": 0.5946
+    },
+    {
+      "name": "ontology_entity_coverage",
+      "value": 0.36
+    },
+    {
+      "name": "ontology_relation_coverage",
+      "value": 0.0667
+    }
+  ],
+  "duration_seconds": 0.00013950001448392868,
+  "dataset_name": "live_graph",
+  "sample_size": 111,
+  "timestamp": "2026-07-08T11:26:58.049594+00:00"
+}

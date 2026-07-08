@@ -1,0 +1,16 @@
+{
+  "sample_size": 60,
+  "vector_only_mean_recall_at_5": 0.8,
+  "hybrid_no_graph_mean_recall_at_5": 1.0,
+  "graph_aware_hybrid_mean_recall_at_5": 1.0,
+  "vector_vs_hybrid_no_graph": {
+    "winner": "hybrid_no_graph",
+    "mean_delta": -0.2,
+    "p_value": 0.0001
+  },
+  "hybrid_no_graph_vs_graph_aware": {
+    "winner": "tie",
+    "mean_delta": 0.0,
+    "p_value": 1.0
+  }
+}

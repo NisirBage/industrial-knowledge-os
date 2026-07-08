@@ -1,0 +1,25 @@
+Failure Report — Pump P-101 Drive-End Bearing
+
+Report Date: 2024-03-22
+Failure Mode: Bearing wear / suction starvation
+Equipment: Pump P-101 (Sundyne LMV-311)
+Related asset: Valve V-2201A
+
+Description:
+
+Drive-end bearing on P-101 failed to the point of requiring unscheduled
+replacement on 2024-03-22, approximately 3 weeks earlier than the
+scheduled April replacement window flagged in the March 10 inspection
+report. Failure mode is consistent with suction starvation caused by Valve
+V-2201A being in the closed position at the time of the high-vibration trip,
+per Section 9 of the OEM manual's documented failure modes.
+
+Downtime: 4 hours (unplanned).
+Personnel involved: 2 maintenance technicians, 1 reliability engineer.
+Parts replaced: drive-end bearing assembly (part BRG-4471-DE).
+Estimated cost impact: parts + labor + downtime, approximately $8,200.
+
+Preventive action assigned: implement shared valve-state logging across
+crews (see SOP-RE-014 revision) to prevent a recurrence of an
+undocumented valve state change causing suction starvation on a downstream
+asset.

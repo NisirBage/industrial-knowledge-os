@@ -1,0 +1,17 @@
+{
+  "benchmark_name": "recommendation",
+  "metrics": [
+    {
+      "name": "recommendation_acceptance_rate",
+      "value": 0.0
+    },
+    {
+      "name": "recommendation_feedback_volume",
+      "value": 0.0
+    }
+  ],
+  "duration_seconds": 0.015213500009849668,
+  "dataset_name": "learning_repository",
+  "sample_size": 0,
+  "timestamp": "2026-07-08T11:26:58.157251+00:00"
+}

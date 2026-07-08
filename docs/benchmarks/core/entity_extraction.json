@@ -1,0 +1,21 @@
+{
+  "benchmark_name": "entity_extraction",
+  "metrics": [
+    {
+      "name": "precision",
+      "value": 0.9412
+    },
+    {
+      "name": "recall",
+      "value": 0.6575
+    },
+    {
+      "name": "f1",
+      "value": 0.7742
+    }
+  ],
+  "duration_seconds": 0.005044000019552186,
+  "dataset_name": "synthetic",
+  "sample_size": 60,
+  "timestamp": "2026-07-08T11:26:58.043695+00:00"
+}

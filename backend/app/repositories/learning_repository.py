@@ -18,7 +18,7 @@ import uuid
 from typing import Protocol
 
 from sqlalchemy import Float, String, func, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

@@ -1,0 +1,30 @@
+Root Cause Analysis Report — Pump P-101 Failure
+
+Incident Date: 2024-03-22
+Report Author: T. Nakamura, Reliability Engineering
+Incident Classification: Unplanned shutdown, Severity: Medium
+
+Summary:
+
+Pump P-101 tripped on high vibration alarm at 14:32 on 2024-03-22. Root cause
+investigation determined that Valve V-2201A, the upstream isolation valve,
+was found in the CLOSED position at the time of the trip — contrary to the
+expected normal-operation OPEN state — causing a partial flow restriction
+that starved P-101's suction and accelerated bearing wear beyond the level
+already flagged in the March 2024 maintenance log and the March 10 inspection
+report.
+
+Pump P-101 failed due to Valve V-2201A blockage during the March 2024
+incident. The bearing wear on P-101 caused excessive vibration, which was
+detected during the routine vibration monitoring, escalating to the trip.
+
+Corrective actions taken:
+1. Valve V-2201A reopened and confirmed OPEN; flow restored.
+2. P-101 drive-end bearing replaced (preempting the scheduled April
+   replacement window).
+3. Root cause: valve position was changed during an adjacent line's
+   maintenance work without updating P-101's operating log — a
+   communication gap between crews, not an equipment defect.
+
+Follow-up action: implement a shared valve-state log across maintenance
+crews working on interconnected lines.

@@ -1,0 +1,77 @@
+{
+  "description": "Hand-labeled ground truth for the P-101/V-2201A demo scenario, spanning all 7 curated document types. Used to sanity-check ingestion, entity/relation extraction, retrieval, reasoning, and prediction against known-correct answers — not auto-generated, and not guaranteed to be extracted with 100% recall/precision by the current pipeline (that gap is exactly what docs/benchmarks/ measures).",
+  "documents": [
+    "maintenance_log_P101.txt",
+    "inspection_report_P101.txt",
+    "incident_report_P101.txt",
+    "oem_manual_P101.txt",
+    "sop_P101.txt",
+    "equipment_history_P101.txt",
+    "failure_report_P101.txt"
+  ],
+  "ground_truth_entities": [
+    {"label": "Pump", "canonical_name": "P-101"},
+    {"label": "Valve", "canonical_name": "V-2201A"},
+    {"label": "Motor", "canonical_name": "M-101"},
+    {"label": "Manufacturer", "canonical_name": "Sundyne"},
+    {"label": "Standard", "canonical_name": "API 610"},
+    {"label": "Procedure", "canonical_name": "SOP-RE-014"},
+    {"label": "Location", "canonical_name": "Unit 3"},
+    {"label": "FailureMode", "canonical_name": "bearing wear / suction starvation"}
+  ],
+  "ground_truth_relations": [
+    {"source": "P-101", "relation": "CONNECTED_TO", "target": "V-2201A", "evidence": "V-2201A is P-101's upstream isolation valve (oem_manual_P101.txt Section 7)"},
+    {"source": "P-101", "relation": "FAILED_DUE_TO", "target": "V-2201A", "evidence": "incident_report_P101.txt: 'Pump P-101 failed due to Valve V-2201A blockage'"},
+    {"source": "P-101", "relation": "USES_STANDARD", "target": "API 610", "evidence": "inspection_report_P101.txt, oem_manual_P101.txt"},
+    {"source": "P-101", "relation": "REQUIRES", "target": "SOP-RE-014", "evidence": "sop_P101.txt governs P-101 startup/isolation"},
+    {"source": "P-101", "relation": "LOCATED_IN", "target": "Unit 3", "evidence": "equipment_history_P101.txt"},
+    {"source": "P-101", "relation": "PART_OF", "target": "M-101", "evidence": "equipment_history_P101.txt: 'Motor M-101 (drive motor, direct-coupled)'"}
+  ],
+  "ground_truth_contradiction": {
+    "equipment": "V-2201A",
+    "conflict": "inspection_report_P101.txt (2024-03-10) states V-2201A was OPEN; incident_report_P101.txt (2024-03-22) states V-2201A was found CLOSED at the time of the trip",
+    "expected_detector_behavior": "ContradictionDetector should flag a state conflict on V-2201A across these two documents — see docs/architecture/reasoning.md#5-reasoning"
+  },
+  "ground_truth_questions": [
+    {
+      "question": "What is the failure history of P-101?",
+      "expected_answer_contains": ["bearing wear", "V-2201A", "March 2024", "suction starvation"]
+    },
+    {
+      "question": "Why did Pump P-101 fail?",
+      "expected_answer_contains": ["Valve V-2201A", "closed", "suction starvation", "bearing"]
+    },
+    {
+      "question": "What standard governs inspection of P-101?",
+      "expected_answer_contains": ["API 610"]
+    },
+    {
+      "question": "Is Valve V-2201A currently open or closed?",
+      "expected_answer_contains": ["contradiction", "conflicting", "confirm"],
+      "note": "This question should surface the contradiction rather than assert one state confidently."
+    }
+  ],
+  "ground_truth_recommendations": [
+    {
+      "trigger": "Bearing wear reported in maintenance_log_P101.txt and inspection_report_P101.txt",
+      "expected_recommendation": "Schedule/expedite drive-end bearing replacement for P-101",
+      "expected_priority": "high"
+    },
+    {
+      "trigger": "Root cause in incident_report_P101.txt: undocumented valve state change by another crew",
+      "expected_recommendation": "Implement shared valve-state logging across crews on interconnected lines",
+      "expected_priority": "medium"
+    }
+  ],
+  "ground_truth_predictions": {
+    "equipment_id": "P-101",
+    "failure_risk": {
+      "expected_direction": "elevated",
+      "reasoning": "2 recorded incidents/failure events within ~2 months, vibration above alert threshold twice, is exactly the pattern app/ml/datasets/synthetic.py's failure_prediction label formula weights toward label=1 (high failure_count/incident_count, low inspection_frequency relative to incident rate)"
+    },
+    "maintenance_priority": {
+      "expected_direction": "high",
+      "reasoning": "Recent bearing replacement + documented recurring wear pattern"
+    }
+  }
+}

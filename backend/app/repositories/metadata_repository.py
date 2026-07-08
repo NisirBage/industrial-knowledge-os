@@ -9,7 +9,7 @@ import datetime as dt
 import uuid
 
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

@@ -1,0 +1,6 @@
+metric,value
+node_count,111.0
+edge_count,66.0
+average_degree,0.5946
+ontology_entity_coverage,0.36
+ontology_relation_coverage,0.0667

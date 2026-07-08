@@ -1,0 +1,28 @@
+OEM Manual Excerpt — Sundyne Centrifugal Pump, Model LMV-311
+Applies to: Pump P-101
+
+Section 4: Bearing Maintenance
+
+Drive-end and non-drive-end bearings should be inspected at intervals not
+exceeding 2,000 operating hours or 6 months, whichever comes first. Vibration
+alert threshold: 3.5 mm/s RMS (ISO 10816 Zone C boundary for this pump class).
+Vibration trip threshold: 7.0 mm/s RMS.
+
+Section 7: Upstream Isolation Valve Requirements
+
+This pump model requires a full-bore isolation valve (such as Valve V-2201A
+in this installation) upstream of the suction flange. The valve MUST remain
+fully open during normal operation. Operating the pump with the upstream
+valve partially closed or closed risks suction starvation, cavitation, and
+accelerated bearing wear — consistent with the failure mode described in
+Section 9.
+
+Section 9: Common Failure Modes
+
+- Suction starvation (upstream valve closed/restricted): symptoms include
+  rising vibration, bearing wear, and eventual high-vibration trip.
+- Seal degradation from age or chemical exposure.
+- Misalignment following reinstallation after maintenance.
+
+Manufacturer: Sundyne
+Standard referenced: API 610

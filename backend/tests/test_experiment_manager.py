@@ -72,7 +72,7 @@ async def test_list_returns_all_experiments_newest_first(tmp_path):
     manager = await _manager(tmp_path)
     first = await manager.start("first", "d", {}, [], [], [], "none", "1.0", "synthetic")
     await manager.complete(first.experiment_id, {})
-    second = await manager.start("second", "d", {}, [], [], [], "none", "1.0", "synthetic")
+    await manager.start("second", "d", {}, [], [], [], "none", "1.0", "synthetic")
 
     experiments = await manager.list()
 

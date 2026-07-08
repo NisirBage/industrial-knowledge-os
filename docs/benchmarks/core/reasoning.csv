@@ -1,0 +1,5 @@
+metric,value
+precision,1.0
+recall,1.0
+f1,1.0
+contradictions_detected,8.0

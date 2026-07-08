@@ -40,7 +40,7 @@ class RecommendationEngine:
 
     def generate(self, reasoning_graph: ReasoningGraph, contradictions: list[Contradiction]) -> RecommendationBundle:
         recommendations = [self._from_risk(risk) for risk in reasoning_graph.nodes_of_type(ReasoningNodeType.RISK)]
-        recommendations += [self._from_contradiction(c) for c in contradictions]
+        recommendations += [self._from_contradiction(c, i) for i, c in enumerate(contradictions)]
         recommendations = self._refine_justifications(recommendations)
 
         overall_confidence = round(sum(r.confidence for r in recommendations) / len(recommendations), 2) if recommendations else 0.5
@@ -88,10 +88,14 @@ class RecommendationEngine:
             supporting_evidence=list(risk.supporting_evidence_ids),
         )
 
-    def _from_contradiction(self, contradiction: Contradiction) -> Recommendation:
+    def _from_contradiction(self, contradiction: Contradiction, index: int) -> Recommendation:
         priority = Priority.HIGH if contradiction.severity in _SEVERE_CONTRADICTION_SEVERITIES else Priority.MEDIUM
         return Recommendation(
-            id=f"contradiction:{'-'.join(contradiction.conflicting_evidence)}",
+            # index disambiguates: the same evidence-id pair can independently
+            # produce multiple distinct contradiction findings (e.g. duplicate
+            # ingestion, or multiple conflicting fields between the same two
+            # sources), and Recommendation.id must stay unique per finding.
+            id=f"contradiction:{index}:{'-'.join(contradiction.conflicting_evidence)}",
             description=f"Clarify contradictory evidence: {contradiction.description}",
             priority=priority,
             severity=contradiction.severity,
