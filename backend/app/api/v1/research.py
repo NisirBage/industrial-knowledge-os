@@ -18,6 +18,20 @@ from app.research.benchmarks.runners import (
     KnowledgeGraphBenchmark,
     RelationExtractionBenchmark,
 )
+from app.research.benchmarks.vision_runners import (
+    DefectDetectionBenchmark,
+    DiagramParsingBenchmark,
+    EquipmentRecognitionBenchmark,
+    GaugeReadingBenchmark,
+    MultimodalRetrievalBenchmark,
+    OCRBenchmark,
+    VisionLatencyBenchmark,
+)
+from app.research.benchmarks.graph_runners import (
+    GraphEmbeddingBenchmark,
+    LinkPredictionBenchmark,
+    NodeClassificationBenchmark,
+)
 from app.research.datasets.generator import SyntheticDatasetGenerator
 from app.research.experiments.manager import ExperimentManager
 from app.research.experiments.models import Experiment
@@ -36,7 +50,52 @@ from app.schemas.research import (
 
 router = APIRouter(prefix="/research", tags=["research"])
 
-_AUTO_RUN_BENCHMARKS = {"entity_extraction", "relation_extraction", "knowledge_graph"}
+_AUTO_RUN_BENCHMARKS = {
+    "entity_extraction",
+    "relation_extraction",
+    "knowledge_graph",
+    "vision_ocr",
+    "vision_diagram_parsing",
+    "vision_equipment_recognition",
+    "vision_gauge_reading",
+    "vision_defect_detection",
+    "vision_multimodal_retrieval",
+    "vision_latency",
+    "graph_embedding_node2vec",
+    "graph_embedding_deepwalk",
+    "graph_embedding_gcn",
+    "graph_embedding_graphsage",
+    "graph_embedding_gat",
+    "graph_link_prediction",
+    "graph_node_classification",
+}
+
+# M7 vision benchmarks generate their own small deterministic synthetic
+# images/graphs (see vision_runners.py) rather than consuming the text
+# SyntheticDatasetGenerator's output — so this dispatch skips that step for
+# them, unlike the three text benchmarks above them.
+_VISION_BENCHMARK_NAMES = {
+    "vision_ocr",
+    "vision_diagram_parsing",
+    "vision_equipment_recognition",
+    "vision_gauge_reading",
+    "vision_defect_detection",
+    "vision_multimodal_retrieval",
+    "vision_latency",
+}
+
+# M9 graph benchmarks likewise generate their own small deterministic
+# synthetic graph (see graph_runners.py's _synthetic_graph_repo) rather than
+# the live production graph or the text SyntheticDatasetGenerator.
+_GRAPH_BENCHMARK_NAMES = {
+    "graph_embedding_node2vec",
+    "graph_embedding_deepwalk",
+    "graph_embedding_gcn",
+    "graph_embedding_graphsage",
+    "graph_embedding_gat",
+    "graph_link_prediction",
+    "graph_node_classification",
+}
 
 
 def _experiment_to_out(experiment: Experiment) -> ExperimentOut:
@@ -107,15 +166,44 @@ async def run_benchmark(benchmark_name: str, payload: BenchmarkRunRequest, reque
     relation_extractor = request.app.state.relation_extractor
     graph_repository = request.app.state.graph_repository
 
-    generator = SyntheticDatasetGenerator(seed=payload.seed)
-    documents = generator.generate_dataset(payload.sample_size)
-
-    if benchmark_name == "entity_extraction":
-        report = await EntityExtractionBenchmark(entity_extraction_service, documents).run()
-    elif benchmark_name == "relation_extraction":
-        report = await RelationExtractionBenchmark(entity_extraction_service, relation_extractor, documents).run()
+    if benchmark_name in _GRAPH_BENCHMARK_NAMES:
+        if benchmark_name.startswith("graph_embedding_"):
+            model_name = benchmark_name.removeprefix("graph_embedding_")
+            report = await GraphEmbeddingBenchmark(model_name).run()
+        elif benchmark_name == "graph_link_prediction":
+            report = await LinkPredictionBenchmark().run()
+        else:
+            report = await NodeClassificationBenchmark().run()
+    elif benchmark_name in _VISION_BENCHMARK_NAMES:
+        if benchmark_name == "vision_ocr":
+            report = await OCRBenchmark(request.app.state.vision_ocr_provider).run()
+        elif benchmark_name == "vision_diagram_parsing":
+            report = await DiagramParsingBenchmark(request.app.state.vision_diagram_parser).run()
+        elif benchmark_name == "vision_equipment_recognition":
+            report = await EquipmentRecognitionBenchmark(request.app.state.vision_object_detector).run()
+        elif benchmark_name == "vision_gauge_reading":
+            report = await GaugeReadingBenchmark(request.app.state.vision_gauge_reader).run()
+        elif benchmark_name == "vision_defect_detection":
+            report = await DefectDetectionBenchmark(request.app.state.vision_defect_detector).run()
+        elif benchmark_name == "vision_multimodal_retrieval":
+            report = await MultimodalRetrievalBenchmark().run()
+        else:
+            report = await VisionLatencyBenchmark(
+                request.app.state.vision_diagram_parser,
+                request.app.state.vision_object_detector,
+                request.app.state.vision_defect_detector,
+                request.app.state.vision_gauge_reader,
+            ).run()
     else:
-        report = await KnowledgeGraphBenchmark(graph_repository, len(EntityLabel), len(RelationType)).run()
+        generator = SyntheticDatasetGenerator(seed=payload.seed)
+        documents = generator.generate_dataset(payload.sample_size)
+
+        if benchmark_name == "entity_extraction":
+            report = await EntityExtractionBenchmark(entity_extraction_service, documents).run()
+        elif benchmark_name == "relation_extraction":
+            report = await RelationExtractionBenchmark(entity_extraction_service, relation_extractor, documents).run()
+        else:
+            report = await KnowledgeGraphBenchmark(graph_repository, len(EntityLabel), len(RelationType)).run()
 
     experiment_manager: ExperimentManager = request.app.state.experiment_manager
     experiment = await experiment_manager.start(

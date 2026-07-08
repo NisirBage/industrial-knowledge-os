@@ -1,19 +1,21 @@
 # IKIOS — Industrial Knowledge Intelligence OS
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-367%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-659%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 
-**Not a chatbot. Not "chat with PDF."** IKIOS is a seven-layer industrial AI
-platform: it ingests heterogeneous documents, builds a persistent knowledge
-graph, reasons over evidence with explicit contradiction detection, generates
-justified recommendations, learns from feedback, trains real machine learning
-models, and exposes a full research/benchmarking framework — chat is the
-surface, not the architecture.
+**Not a chatbot. Not "chat with PDF."** IKIOS is a nine-layer industrial AI
+platform: it ingests heterogeneous documents *and images* (P&IDs, inspection
+photos, engineering drawings), builds a persistent knowledge graph spanning
+text and vision, learns graph embeddings from that graph, reasons over
+evidence with explicit contradiction detection, generates justified
+recommendations, learns from feedback, trains real machine learning models,
+and exposes a full research/benchmarking framework — chat is the surface,
+not the architecture.
 
 Built for the **ET AI Hackathon 2026** — Problem Statement 8: *"AI for
 Industrial Knowledge Intelligence: Unified Asset & Operations Brain."*
@@ -39,6 +41,8 @@ disagree, and predicts what's likely to happen next.
 | Learning Layer | Timeline reconstruction, rule-based prediction, feedback loop |
 | Research Framework | Real benchmarks, reproducible experiments, A/B testing |
 | ML Laboratory | Real scikit-learn training, model registry, explainability, drift monitoring |
+| Multimodal Vision | OCR, diagram parsing, equipment/gauge/defect detection — images become graph evidence too |
+| Graph Intelligence | Node2Vec/DeepWalk/GCN/GraphSAGE/GAT embeddings, link prediction, node classification, risk propagation — another reasoning source, not a replacement for symbolic reasoning |
 
 Every claim in a Chat answer traces back to a cited document chunk.
 Contradictions across sources are surfaced explicitly, never silently
@@ -50,27 +54,32 @@ the full picture with diagrams.
 ```mermaid
 flowchart LR
     A[Document Ingestion] --> B[Knowledge Graph]
-    B --> C[Hybrid Retrieval]
+    V[Vision Ingestion<br/>Images · P&IDs · Photos] --> B
+    B --> C[Hybrid + Multimodal Retrieval]
     C --> D[8-Stage Reasoning<br/>LangGraph Orchestrator]
     D --> E[Learning Layer]
     E --> F[Research Framework]
     E --> G[ML Laboratory]
+    B --> H[Graph Intelligence<br/>Embeddings · Link Prediction · Node Classification]
+    H -.graph models swap into.-> G
     G -.trained models swap into.-> E
 ```
 
 Full diagrams for every subsystem: [docs/architecture/](docs/architecture/README.md).
 
-## Screenshots
+## Showcase
 
-Live workspace screenshots and a walkthrough GIF are in
-[docs/showcase/README.md](docs/showcase/README.md) — the four workspaces
-(Chat, Documents, Research, ML Lab) captured against the real running app and
-the [demo dataset](demo_data/README.md).
+Real captured output (not mockups) from all six workspaces (Chat,
+Documents, Research, ML Lab, Vision, Graph Intelligence) against the real running app and the
+[demo dataset](demo_data/README.md) is in
+[docs/showcase/README.md](docs/showcase/README.md) — text/JSON/accessibility-tree
+excerpts rather than image screenshots, for reasons explained there.
 
 ## Technology stack
 
 **Backend:** Python 3.13, FastAPI, LangGraph, SQLAlchemy (async), scikit-learn,
-pandas, Neo4j driver, Qdrant client, GLiNER, sentence-transformers.
+pandas, Neo4j driver, Qdrant client, GLiNER, sentence-transformers,
+OpenCV (classical CV vision baseline), EasyOCR, Pillow.
 **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Recharts.
 **Infra:** Docker Compose (Qdrant + Neo4j), SQLite (metadata/learning/
 experiment/ML-registry stores).
@@ -105,6 +114,7 @@ for the full four-workspace tour.
 - **Documents** — upload PDF/TXT/MD, see it ingested (chunks, entities, relations) in real time
 - **Research** — run benchmarks and A/B tests on demand, view experiment history
 - **ML Lab** — train a real scikit-learn model, view its ROC/calibration/confusion matrix, browse the model registry
+- **Vision** — upload an image, watch it get analyzed (OCR, diagram parsing, equipment detection, gauge reading, defect detection), explore results as overlays on the image, browse the Knowledge Graph entities created, and ask multimodal questions — see [docs/architecture/vision.md](docs/architecture/vision.md)
 
 Full API reference: [docs/api/README.md](docs/api/README.md).
 
@@ -138,11 +148,11 @@ export. Details: [docs/architecture/research.md](docs/architecture/research.md).
 
 ```
 industrial-knowledge-os/
-├── backend/            # FastAPI app, all business logic, 367 tests
+├── backend/            # FastAPI app, all business logic, 444 tests
 │   ├── app/             # see docs/architecture/backend.md for the full map
 │   ├── tests/
 │   └── scripts/         # seed_demo_data.py, generate_benchmark_reports.py
-├── frontend/            # React + Vite, 4 workspaces
+├── frontend/            # React + Vite, 5 workspaces, 66 tests (Vitest + RTL)
 ├── demo_data/           # curated demo dataset + ground truth
 ├── docs/                # documentation portal (this is the map)
 ├── docker-compose.yml   # Qdrant + Neo4j (optional — see fallback modes)
@@ -163,19 +173,24 @@ reference: [docs/api/README.md](docs/api/README.md). Highlights:
 | `POST /predictions` | Rule-based or trained-ML prediction |
 | `POST /research/benchmarks/{name}/run` | Run a benchmark now |
 | `POST /ml/train/{task}` | Train a real scikit-learn model, hot-swap it live |
+| `POST /vision/images/{id}/analyze` | OCR + diagram + detection + gauge + defect analysis, written into the graph |
+| `POST /vision/query` | Multimodal (text + visual) evidence retrieval |
 
 ## Testing
 
 ```bash
 cd backend
 pip install -r requirements-dev.txt
-pytest -q                                       # 367 tests
-pytest -q --cov=app --cov-report=term-missing   # with coverage (96%, since v1.0.1's API-layer tests)
+pytest -q                                       # 444 tests
+pytest -q --cov=app --cov-report=term-missing   # with coverage (96%)
+
+cd ../frontend
+npm test                                        # 107 tests (Vitest + React Testing Library)
 ```
 
 Every milestone's test suite has been a strict superset of the previous
 one's — nothing has ever been weakened or deleted to make a later milestone
-pass. See [docs/contributing/testing.md](docs/contributing/testing.md).
+pass. 659 tests total. See [docs/contributing/testing.md](docs/contributing/testing.md).
 
 ## Performance
 
@@ -189,7 +204,9 @@ rule-based baseline — an honest finding, not a cherry-picked one).
 
 ## Future work
 
-OCR/DOCX/XLSX ingestion, Postgres/Redis/MinIO, real historical training
+Deep-learning vision models (YOLO/GroundingDINO/Detectron2, a trained P&ID
+symbol classifier, an image-embedding `VisionFeatureExtractor`), scanned-PDF
+OCR, DOCX/XLSX ingestion, Postgres/Redis/MinIO, real historical training
 labels, SHAP integration, XGBoost/LightGBM/PyTorch trainers, authentication —
 see [docs/roadmap/README.md](docs/roadmap/README.md) for the full,
 honest list (every item there is a documented extension point, not a
@@ -200,7 +217,8 @@ guess).
 Start here: [docs/getting-started/README.md](docs/getting-started/README.md) →
 [docs/architecture/README.md](docs/architecture/README.md) →
 [docs/faq/README.md](docs/faq/README.md). Full technical history of how this
-platform evolved across seven milestones: [docs/RELEASE_REPORT.md](docs/RELEASE_REPORT.md).
+platform evolved from M0 through v1.2.0: [docs/RELEASE_REPORT.md](docs/RELEASE_REPORT.md)
+(see [CHANGELOG.md](CHANGELOG.md) for M9/v1.3.0 and later).
 
 ## Contributing
 

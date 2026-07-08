@@ -22,6 +22,23 @@ async def test_average_prediction_confidence_none_when_no_predictions(tmp_path):
     assert await repo.average_prediction_confidence() is None
 
 
+async def test_latest_prediction_confidence_returns_most_recent_for_that_equipment(tmp_path):
+    repo = await _repo(tmp_path)
+
+    await repo.record_prediction("failure_risk", "P-101", 0.5, 0.6, "explanation", "rule_based_v1")
+    await repo.record_prediction("failure_risk", "P-101", 0.7, 0.9, "explanation", "rule_based_v1")
+    await repo.record_prediction("failure_risk", "V-201", 0.3, 0.2, "explanation", "rule_based_v1")
+
+    assert await repo.latest_prediction_confidence("P-101") == 0.9
+    assert await repo.latest_prediction_confidence("V-201") == 0.2
+
+
+async def test_latest_prediction_confidence_none_for_unknown_equipment(tmp_path):
+    repo = await _repo(tmp_path)
+
+    assert await repo.latest_prediction_confidence("does-not-exist") is None
+
+
 async def test_record_outcome_is_independently_stored(tmp_path):
     repo = await _repo(tmp_path)
     prediction_id = await repo.record_prediction("failure_risk", "P-101", 0.5, 0.6, "explanation", "rule_based_v1")

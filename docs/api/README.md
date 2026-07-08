@@ -75,7 +75,8 @@ Prefix: `/research`
 
 Valid `benchmark_name` values: `entity_extraction`, `relation_extraction`,
 `knowledge_graph`, `hybrid_retrieval`, `reasoning`, `recommendation`,
-`prediction`, `timeline`.
+`prediction`, `timeline`, plus 7 vision benchmarks added in M7 — see the
+[Vision section](#vision-m7) below.
 
 ## ML Lab (M6)
 
@@ -107,6 +108,60 @@ The response's `model.metrics` is always a single held-out train/test split;
 `cross_validation_metrics`/`cross_validation_fold_count` are `null` unless
 `include_cross_validation` was set — the two are never merged into one
 number. See [docs/architecture/ml-lab.md](../architecture/ml-lab.md#3-model-training-framework).
+
+## Vision (M7)
+
+Prefix: `/vision`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/vision/images` | Multipart upload — `file` + form fields `source_type`, optional `equipment_hint`. Validates and stores the image, returns its metadata. |
+| GET | `/vision/images` | List all ingested vision images |
+| GET | `/vision/images/{image_id}` | Fetch one image's metadata |
+| GET | `/vision/images/{image_id}/file` | Serves the raw stored image bytes (added in M7.1 for the Vision Workspace's Interactive Viewer) |
+| POST | `/vision/images/{image_id}/analyze` | Runs OCR + diagram parsing + equipment detection + gauge reading + defect detection, writes every result into the Vision Knowledge Graph, and returns them for the Vision Workspace to render as overlays |
+| POST | `/vision/query` | `{"query": "...", "top_k": 8}` → runs `MultimodalRetriever`, returning merged text + visual `Evidence` |
+
+Valid `source_type` values: `inspection_photo`, `equipment_photo`,
+`pid_diagram`, `electrical_schematic`, `engineering_drawing`,
+`maintenance_image`, `handwritten_note` (unsupported → `422`). Analyzing an
+unknown `image_id` → `404`. `VisionDocumentOut` includes `size_bytes`; every
+item in `VisionAnalysisOut`'s five result arrays includes a `graph_node_id`
+(added in M7.1) linking it back to the exact node
+`VisionKnowledgeGraphBuilder` created for it. See
+[docs/architecture/vision.md](../architecture/vision.md).
+
+New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`
+(see the Research section above): `vision_ocr`, `vision_diagram_parsing`,
+`vision_equipment_recognition`, `vision_gauge_reading`,
+`vision_defect_detection`, `vision_multimodal_retrieval`, `vision_latency`.
+
+## Graph Intelligence (M9)
+
+Prefix: `/graph-intelligence`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/graph-intelligence/summary` | Node/edge counts, distinct node and relation types |
+| GET | `/graph-intelligence/graph` | Full node-link export (with community id) for the Graph Intelligence workspace |
+| GET | `/graph-intelligence/features/{equipment_name}` | Structural (degree, PageRank, betweenness, community) + domain (maintenance, incidents, defects, prediction confidence) features for one node |
+| GET | `/graph-intelligence/embeddings/models` | Available embedding model names: `node2vec`, `deepwalk`, `gcn`, `graphsage`, `gat` |
+| POST | `/graph-intelligence/embeddings/train` | `{"model_name": "...", "dimensions": 32}` → trains and caches an embedding, registers it in the shared model registry |
+| GET | `/graph-intelligence/similarity/{equipment_name}?top_k=5` | Nearest neighbors by cosine similarity over the currently cached (or latest registered) embedding |
+| GET | `/graph-intelligence/explain/{equipment_name}` | Nearest neighbors, important edges, community, supporting evidence, confidence, and a human-readable summary |
+| POST | `/graph-intelligence/link-prediction/candidates` | `{"equipment_name": "...", "top_k": 5}` → ranked link-prediction candidates with confidence and explanation |
+| POST | `/graph-intelligence/node-classification/train` | `{"task_type": "failure_risk", "equipment_names": [...]}` → trains a graph-embedding model against the rule baseline for that task, registers it, returns feature importance |
+| POST | `/graph-intelligence/propagation/simulate` | `{"equipment_name": "...", "propagation_type": "failure", "max_depth": 3}` → simulated risk propagation with per-step risk and path |
+
+Similarity/explain/link-prediction/node-classification all require an
+embedding to have been trained first (`POST /embeddings/train`) — otherwise
+`400`. Unknown equipment names → `404`. See
+[docs/architecture/graph-intelligence.md](../architecture/graph-intelligence.md).
+
+New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`:
+`graph_embedding_node2vec`, `graph_embedding_deepwalk`,
+`graph_embedding_gcn`, `graph_embedding_graphsage`, `graph_embedding_gat`,
+`graph_link_prediction`, `graph_node_classification`.
 
 ## Error handling
 

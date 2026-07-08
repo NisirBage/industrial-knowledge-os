@@ -1,6 +1,6 @@
 # Quick Start
 
-This walks through the four workspaces using the [demo dataset](../../demo_data/README.md).
+This walks through the five workspaces using the [demo dataset](../../demo_data/README.md).
 Run `python backend/scripts/seed_demo_data.py` first (see
 [Installation](installation.md#seeding-demo-data)), or upload your own
 document via **Documents**.
@@ -42,6 +42,19 @@ matrix, all computed from your own run (not canned numbers). The trained model
 is registered and immediately swapped into the live Prediction Engine — the
 next `/api/v1/predictions/{task}/{equipment_id}` call for `failure_risk` uses it.
 See [docs/architecture/ml-lab.md](../architecture/ml-lab.md).
+
+## 5. Vision
+
+Switch to **Vision**. Upload an image (PNG/JPEG/BMP/TIFF — drag-and-drop or
+click to browse), pick a source type (e.g. `equipment_photo`), then click
+**Run Analysis**. You'll see OCR text, detected equipment, diagram symbols,
+gauge readings, and defects overlaid on the image (toggle layers on/off,
+zoom, click a box to highlight it). The **Knowledge Graph** panel below shows
+the real graph node created for each result. Try the **Multimodal Query**
+panel with a question like *"What defects were detected?"* — the answer
+merges text evidence from ingested documents with visual evidence from
+analyzed images, distinguished by Visual/Graph/Text badges. See
+[docs/architecture/vision.md](../architecture/vision.md).
 
 ## What to try next
 

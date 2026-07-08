@@ -9,7 +9,11 @@
 - [Reasoning (Industrial Cognitive Engine)](reasoning.md) — the 8-stage pipeline
 - [Learning Layer](learning-layer.md) — timeline, features, rule-based prediction
 - [ML Laboratory](ml-lab.md) — real scikit-learn training, registry, explainability, monitoring
+- [Multimodal Vision Intelligence](vision.md) — OCR, diagram parsing, equipment recognition, gauge reading, defect detection, Vision Knowledge Graph
+- [Diagram Parser](diagram-parser.md) — engineering diagram symbol detection deep-dive
+- [Multimodal Retrieval](multimodal-retrieval.md) — text + visual evidence fusion deep-dive
 - [Research Framework](research.md) — benchmarks, experiments, A/B testing
+- [Graph Intelligence](graph-intelligence.md) — graph representation learning, embeddings, link prediction, node classification, risk propagation
 - [Deployment](deployment.md) — fallback matrix, environments, Docker
 
 Each doc includes Mermaid diagrams that render directly in GitHub. Start with

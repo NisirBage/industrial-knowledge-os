@@ -8,6 +8,7 @@ venv/
 *.db
 .qdrant_local/
 .ml_models/
+.vision_images/
 coverage.xml
 .coverage
 htmlcov/

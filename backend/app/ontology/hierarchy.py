@@ -36,6 +36,20 @@ _PARENT: dict[EntityLabel, EntityLabel | None] = {
     EntityLabel.DEPARTMENT: None,
     EntityLabel.PERSONNEL: None,
     EntityLabel.DOCUMENT: None,
+    # Vision Knowledge Graph (M7): VisualEvidence groups every detector's
+    # output the same way MaintenanceRecord groups Inspection/Incident/etc,
+    # so "find all visual evidence for P-101" doesn't need to enumerate
+    # DetectedObject/Defect/DiagramSymbol/GaugeReading/OCRRegion by hand.
+    # Image and BoundingBox are structural/supporting nodes, not evidence
+    # themselves, so they stand alone like Document.
+    EntityLabel.VISUAL_EVIDENCE: None,
+    EntityLabel.IMAGE: None,
+    EntityLabel.BOUNDING_BOX: None,
+    EntityLabel.DETECTED_OBJECT: EntityLabel.VISUAL_EVIDENCE,
+    EntityLabel.DEFECT: EntityLabel.VISUAL_EVIDENCE,
+    EntityLabel.DIAGRAM_SYMBOL: EntityLabel.VISUAL_EVIDENCE,
+    EntityLabel.GAUGE_READING: EntityLabel.VISUAL_EVIDENCE,
+    EntityLabel.OCR_REGION: EntityLabel.VISUAL_EVIDENCE,
 }
 
 

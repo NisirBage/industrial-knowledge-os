@@ -65,6 +65,50 @@ All numbers below are computed by actually running the production components —
 - Full ML metrics: {'accuracy': 0.8125, 'precision': 0.8103, 'recall': 0.9216, 'f1': 0.8624, 'roc_auc': 0.88, 'pr_auc': 0.9303, 'brier_score': 0.1395}
 - Held-out sample size: 80
 
+## Graph Intelligence benchmarks (M9)
+
+Run against a deterministic synthetic ring-plus-shortcuts graph (20 nodes,
+cycled across Pump/Valve/Motor types so node-type features aren't degenerate
+— see `app/research/benchmarks/graph_runners.py`), not the live production
+knowledge graph. `embedding_quality_margin` is mean cosine similarity of
+directly-connected node pairs minus mean similarity of random pairs — a
+real, label-free proxy for "does this embedding capture graph structure."
+
+| Benchmark | Training time (s) | Peak memory (bytes) | Connected sim. | Random sim. | Quality margin |
+|---|---|---|---|---|---|
+| graph_embedding_node2vec | 0.2036 | 99,441 | 0.9831 | 0.9311 | 0.0520 |
+| graph_embedding_deepwalk | 0.1315 | 90,405 | 0.9822 | 0.9401 | 0.0421 |
+| graph_embedding_gcn | 1.1803 | 1,681,683 | 0.0167 | -0.1591 | 0.1758 |
+| graph_embedding_graphsage | 0.9745 | 1,006,089 | 0.4391 | 0.2713 | 0.1678 |
+| graph_embedding_gat | 1.5179 | 1,088,910 | 0.3165 | -0.1318 | 0.4483 |
+
+The GNN models (GCN/GraphSAGE/GAT) show a larger quality margin than
+Node2Vec/DeepWalk on this small synthetic graph, but at roughly 5-10x the
+training time and 10-17x the peak memory — a real, expected trade-off on a
+20-node graph, not evidence either family is broadly "better."
+
+**Link prediction** (real train/test split — 10 held-out edges physically
+removed from the graph before training, so the true target is not excluded
+by `top_candidates()`'s own already-connected filter):
+
+- MRR: **0.1173**
+- Recall@5: **0.1**
+- Held-out edges: 10
+
+**Node classification vs. rule baseline** (graph-embedding
+`RandomForestRegressor` trained to predict node degree, a real structural
+target, vs. a "predict the training mean" rule baseline):
+
+- Rule baseline MAE: **0.5238**
+- Graph model MAE: **0.545**
+- Winner: **rule baseline**
+
+Reported as-is: on this small (20-node) synthetic graph, the simple mean
+baseline currently beats the graph-embedding regressor — the same honest
+"rule baseline wins" outcome already documented above for M6's classical
+failure-risk comparison. Small-sample synthetic benchmarks can genuinely go
+either way; this is not tuned or hidden.
+
 ## Notes on methodology and limitations
 
 - Documents are synthetically generated (seeded, deterministic) — see

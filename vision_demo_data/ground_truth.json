@@ -1,0 +1,78 @@
+{
+  "description": "Hand-designed, deterministic, small vision demo dataset (M7) with exact known ground truth \u2014 analogous to demo_data/ground_truth.json for text. No real industrial photographs were available to this project; these are programmatically drawn scenes with controllable, verifiable ground truth.",
+  "images": [
+    {
+      "file": "gauge_pg201.png",
+      "source_type": "equipment_photo",
+      "description": "Pressure gauge PG-201 with needle at a known angle.",
+      "ground_truth": {
+        "gauge_center": [
+          200,
+          200
+        ],
+        "gauge_radius": 120,
+        "needle_angle_degrees": 40.0,
+        "expected_normalized_value": 0.6481,
+        "ocr_text": "PRESSURE GAUGE PG-201"
+      }
+    },
+    {
+      "file": "pid_diagram.png",
+      "source_type": "pid_diagram",
+      "description": "Simple P&ID: valve V-2201A connected by a pipe to pump P-101.",
+      "ground_truth": {
+        "valve_bounding_box_approx": [
+          60,
+          60,
+          140,
+          140
+        ],
+        "pump_bounding_box_approx": [
+          250,
+          60,
+          420,
+          160
+        ],
+        "ocr_text": [
+          "V-2201A",
+          "P-101"
+        ],
+        "symbols_expected": [
+          "valve",
+          "pump",
+          "pipe"
+        ]
+      }
+    },
+    {
+      "file": "equipment_m500_corrosion.png",
+      "source_type": "inspection_photo",
+      "description": "Motor M-500 with a visible corrosion patch on its housing.",
+      "ground_truth": {
+        "equipment_bounding_box_approx": [
+          70,
+          70,
+          230,
+          230
+        ],
+        "defect_bounding_box_approx": [
+          150,
+          150,
+          210,
+          210
+        ],
+        "defect_type": "corrosion",
+        "ocr_text": "M-500"
+      }
+    },
+    {
+      "file": "tank_t300_crack.png",
+      "source_type": "inspection_photo",
+      "description": "Tank T-300 with a thin surface crack.",
+      "ground_truth": {
+        "defect_type": "crack",
+        "ocr_text": "TANK T-300"
+      }
+    }
+  ]
+}

@@ -111,6 +111,7 @@ class LearningRepositoryProtocol(Protocol):
     async def retrieval_frequency(self, equipment_id: str) -> int: ...
     async def feedback_volume(self) -> int: ...
     async def average_prediction_confidence(self) -> float | None: ...
+    async def latest_prediction_confidence(self, equipment_id: str) -> float | None: ...
     async def average_model_accuracy(self, metric_name: str = "accuracy") -> float | None: ...
     async def confidence_calibration_buckets(self, threshold: float = 0.2) -> list[dict]: ...
 
@@ -232,6 +233,20 @@ class SqlLearningRepository:
         async with self._session_factory() as session:
             avg = await session.scalar(select(func.avg(PredictionRecord.confidence)))
         return round(avg, 4) if avg is not None else None
+
+    async def latest_prediction_confidence(self, equipment_id: str) -> float | None:
+        """Added for the Graph Feature Store (M9) — every prior consumer only
+        needed the platform-wide average; per-node features need the most
+        recent prediction confidence for *this* equipment specifically."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(PredictionRecord.confidence)
+                .where(PredictionRecord.equipment_id == equipment_id)
+                .order_by(PredictionRecord.created_at.desc())
+                .limit(1)
+            )
+            row = result.first()
+        return round(row[0], 4) if row else None
 
     async def average_model_accuracy(self, metric_name: str = "accuracy") -> float | None:
         async with self._session_factory() as session:

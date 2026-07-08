@@ -35,6 +35,53 @@ visible to a later test in the same session) — write new API tests to assert
 on what *they* create or on qualitative response shape, not on exact global
 counts that other tests could affect.
 
+This ordering dependency is real, not theoretical: an early version of
+`test_api_vision.py` had a test that queried `/vision/query` before any
+document had ever been ingested in that run, which crashed with a raw `500`
+(the vector store's collection doesn't exist until the first upload calls
+`ensure_collection()`) — but only when that test file was run in isolation,
+since other `test_api_*.py` files alphabetically before it already upload
+documents when the full suite runs. The real fix was in the app itself
+(`MultimodalRetriever.retrieve()` now degrades gracefully instead of
+crashing — see [docs/architecture/multimodal-retrieval.md](../architecture/multimodal-retrieval.md#graceful-degradation)),
+but the lesson for test authors: if a test's pass/fail depends on what ran
+before it in the same file, that's a sign the code under test has a real gap,
+not just a test-ordering inconvenience to work around.
+
+## Vision tests (M7)
+
+`test_vision_*.py` (ingestion, OCR, diagram, detection, gauge, defect, graph
+builder, multimodal retrieval, abstractions, benchmarks) are business-logic
+tests following the same self-contained-fixture convention as the rest of
+the suite. `test_vision_ocr.py` exercises the real EasyOCR model in a
+module-scoped fixture, with `pytest.skip()` if this environment's
+intermittent native-library (torch DLL) loading flakiness occurs — the same
+pattern already used for GLiNER. `test_api_vision.py` follows the shared
+`client` fixture convention above.
+
+## Frontend tests (M7.1)
+
+The backend test suite above has always been comprehensive; the frontend had
+**zero** automated tests before M7.1. `frontend/src/pages/VisionPage.test.tsx`
+and `frontend/src/services/api.vision.test.ts` are the first, using Vitest +
+React Testing Library + `@testing-library/user-event` (installed from
+scratch — see `frontend/vitest.config.ts` and `frontend/src/test/setup.ts`).
+
+```bash
+cd frontend
+npm test              # vitest run
+npm run test:watch    # vitest, watch mode
+npm run test:coverage # vitest run --coverage
+```
+
+`services/api.*.test.ts` files mock `global.fetch` directly (no MSW/nock) —
+consistent with `api.ts` itself being plain `fetch` calls, not axios.
+`pages/*.test.tsx` files mock `../services/api` module functions via
+`vi.mock` with `importOriginal` (keeping the real exported constants like
+`VISION_SOURCE_TYPES` intact, only mocking the async functions), then drive
+the component with `@testing-library/user-event` and assert on rendered
+text/roles — never on internal component state.
+
 ## Patterns used throughout
 
 - **Real SQLite via `tmp_path`**, not mocks, for anything backed by

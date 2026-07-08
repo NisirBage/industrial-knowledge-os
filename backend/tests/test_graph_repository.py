@@ -13,6 +13,66 @@ def test_create_node_is_idempotent_and_merges_aliases():
     assert set(node["aliases"]) == {"Pump P-101", "Feedwater Pump"}
 
 
+def test_create_node_stores_and_get_node_properties_retrieves_arbitrary_properties():
+    """Regression test: create_node's `properties` argument must actually be
+    retrievable — the Neo4j-backed implementation previously accepted the
+    parameter but silently dropped it (never persisted to the database),
+    an unexercised bug until M7's vision graph builder became the first
+    real caller relying on it."""
+    repo = InMemoryGraphRepository()
+
+    node_id = repo.create_node(EntityLabel.IMAGE, "img-1", properties={"width": 640, "height": 480, "filename": "gauge.png"})
+
+    properties = repo.get_node_properties(node_id)
+    assert properties["width"] == 640
+    assert properties["height"] == 480
+    assert properties["filename"] == "gauge.png"
+
+
+def test_get_node_properties_returns_empty_dict_for_unknown_node():
+    repo = InMemoryGraphRepository()
+
+    assert repo.get_node_properties("does-not-exist") == {}
+
+
+def test_all_nodes_returns_every_created_node_with_its_fields():
+    repo = InMemoryGraphRepository()
+    pump_id = repo.create_node(EntityLabel.PUMP, "P-101", confidence=0.8, properties={"foo": "bar"})
+    valve_id = repo.create_node(EntityLabel.VALVE, "V-201", confidence=0.6)
+
+    nodes = repo.all_nodes()
+
+    ids = {n["id"] for n in nodes}
+    assert ids == {pump_id, valve_id}
+    pump_node = next(n for n in nodes if n["id"] == pump_id)
+    assert pump_node["type"] == EntityLabel.PUMP.value
+    assert pump_node["canonical_name"] == "P-101"
+    assert pump_node["confidence"] == 0.8
+    assert pump_node["properties"] == {"foo": "bar"}
+
+
+def test_all_edges_returns_every_created_relation():
+    repo = InMemoryGraphRepository()
+    pump_id = repo.create_node(EntityLabel.PUMP, "P-101")
+    valve_id = repo.create_node(EntityLabel.VALVE, "V-201")
+    repo.create_relation(pump_id, valve_id, RelationType.CONNECTED_TO, confidence=0.7)
+
+    edges = repo.all_edges()
+
+    assert len(edges) == 1
+    assert edges[0]["source"] == pump_id
+    assert edges[0]["target"] == valve_id
+    assert edges[0]["relation_type"] == RelationType.CONNECTED_TO.value
+    assert edges[0]["confidence"] == 0.7
+
+
+def test_all_nodes_and_all_edges_are_empty_for_a_fresh_repository():
+    repo = InMemoryGraphRepository()
+
+    assert repo.all_nodes() == []
+    assert repo.all_edges() == []
+
+
 def test_create_relation_accumulates_observation_count():
     repo = InMemoryGraphRepository()
     pump_id = repo.create_node(EntityLabel.PUMP, "P-101")

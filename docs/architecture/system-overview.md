@@ -6,13 +6,17 @@ dependency degrades gracefully, and every new capability (M4 Learning, M5
 Research, M6 ML Lab) was added as an **independent subsystem** that never
 modifies the chat orchestrator it sits alongside.
 
-## The seven layers
+## The eight layers
 
 ```mermaid
 flowchart TD
     A[Document Ingestion] --> B[Knowledge Graph]
+    V[Vision Ingestion<br/>Images · P&IDs · Photos] --> VKG[Vision Knowledge Graph]
+    VKG -->|same GraphRepository| B
     B --> C[Hybrid Retrieval]
-    C --> D[Agentic Reasoning<br/>LangGraph Orchestrator]
+    VKG --> MM[Multimodal Retrieval]
+    C --> MM
+    MM --> D[Agentic Reasoning<br/>LangGraph Orchestrator]
     D --> E[Learning Layer<br/>Timeline · Features · Predictions]
     E --> F[Research Framework<br/>Benchmarks · Experiments · A/B]
     E --> G[ML Laboratory<br/>Training · Registry · Explainability]
@@ -20,11 +24,15 @@ flowchart TD
     G -.trained models swap into.-> E
 ```
 
-Layers 5, 6, and 7 (Learning, Research, ML Lab) are **additive**: each exposes
-its own FastAPI routes and `app.state` services, and reuses the same
-`entity_extraction_service`, `graph_repository`, and `retriever` instances the
-chat pipeline uses — so benchmarks measure the real production components, not
-a parallel implementation. None of them touch the orchestrator in layer 4.
+Layers 5, 6, 7, and 8 (Learning, Research, ML Lab, Vision) are **additive**:
+each exposes its own FastAPI routes and `app.state` services, and reuses the
+same `entity_extraction_service`, `graph_repository`, and `retriever`
+instances the chat pipeline uses — so benchmarks measure the real production
+components, not a parallel implementation. None of them touch the
+orchestrator in layer 4. Vision (M7) additionally proves this pattern scales
+across modalities: its evidence reaches reasoning through the exact same
+`Evidence` type and `GraphRepositoryProtocol` every other layer already uses
+— see [vision.md](vision.md).
 
 ## Request flow (Chat)
 
@@ -78,10 +86,14 @@ flowchart LR
         FS --> TRAIN[SklearnTrainer]
         TRAIN --> REG[ModelRegistry]
         REG -.register_model.-> PRED
+        GRAPH --> VKG[VisionKnowledgeGraphBuilder]
+        RET --> MMR[MultimodalRetriever]
+        VKG -.same graph_repository.-> MMR
     end
     ORCH --> STATE[app.state]
     PRED --> STATE
     REG --> STATE
+    MMR --> STATE
 ```
 
 ## Design principles that hold across every milestone
@@ -98,7 +110,7 @@ flowchart LR
 4. **Independent subsystems.** M4/M5/M6 each add new FastAPI routes and
    `app.state` services without editing the M3 orchestrator.
 5. **No regressions, ever.** Every milestone's test suite is a strict superset
-   of the previous one's — 367 tests currently pass, zero have ever been
+   of the previous one's — 440+ tests currently pass, zero have ever been
    deleted or weakened to make a later milestone easier.
 
 ## Where to go next
@@ -111,5 +123,8 @@ flowchart LR
 - [reasoning.md](reasoning.md) — the 8-stage cognitive engine
 - [learning-layer.md](learning-layer.md) — timeline, features, rule-based prediction
 - [ml-lab.md](ml-lab.md) — real scikit-learn training, registry, explainability
+- [vision.md](vision.md) — multimodal vision intelligence (M7): OCR, diagrams, gauges, defects
+- [diagram-parser.md](diagram-parser.md) — engineering diagram symbol detection
+- [multimodal-retrieval.md](multimodal-retrieval.md) — text + visual evidence fusion
 - [research.md](research.md) — benchmarks, experiments, A/B testing
 - [deployment.md](deployment.md) — fallback matrix, Docker, environments

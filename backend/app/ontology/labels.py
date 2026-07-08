@@ -40,6 +40,18 @@ class EntityLabel(str, Enum):
     PERSONNEL = "Personnel"
     DOCUMENT = "Document"
 
+    # Vision Knowledge Graph (M7) — every visual analysis output becomes one
+    # of these node types, never an isolated blob outside the graph. See
+    # docs/architecture/vision-ontology.md.
+    IMAGE = "Image"
+    DETECTED_OBJECT = "DetectedObject"
+    BOUNDING_BOX = "BoundingBox"
+    DEFECT = "Defect"
+    DIAGRAM_SYMBOL = "DiagramSymbol"
+    GAUGE_READING = "GaugeReading"
+    OCR_REGION = "OCRRegion"
+    VISUAL_EVIDENCE = "VisualEvidence"
+
 
 class RelationType(str, Enum):
     CONNECTED_TO = "CONNECTED_TO"
@@ -59,3 +71,13 @@ class RelationType(str, Enum):
     # Document -> Entity: kept distinct from RELATED_TO so "which documents
     # mention X" queries never collide with domain relationships.
     MENTIONS = "MENTIONS"
+
+    # Vision Knowledge Graph (M7)
+    DEPICTS = "DEPICTS"  # Image -> the real-world entity it shows
+    DETECTED_IN = "DETECTED_IN"  # DetectedObject/Defect/DiagramSymbol -> Image
+    LOCATED_AT = "LOCATED_AT"  # DetectedObject -> BoundingBox
+    READ_FROM = "READ_FROM"  # GaugeReading/OCRRegion -> Image
+    ASSOCIATED_WITH = "ASSOCIATED_WITH"  # visual node -> the ontology entity it refers to (e.g. DetectedObject -> Pump)
+    OBSERVED_DURING = "OBSERVED_DURING"  # visual node -> Inspection/MaintenanceRecord
+    SUPPORTS = "SUPPORTS"  # visual evidence corroborating a textual claim
+    CONTRADICTS = "CONTRADICTS"  # visual evidence conflicting with a textual claim

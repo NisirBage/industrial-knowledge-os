@@ -72,6 +72,9 @@ class GraphRepositoryProtocol(Protocol):
     def distinct_relation_types(self) -> set[str]: ...
     def node_count(self) -> int: ...
     def edge_count(self) -> int: ...
+    def get_node_properties(self, node_id: str) -> dict: ...
+    def all_nodes(self) -> list[dict]: ...
+    def all_edges(self) -> list[dict]: ...
 
 
 def _validate_relation_type(relation_type: RelationType) -> str:
@@ -141,14 +144,21 @@ class GraphRepository:
                               e.aliases = $aliases, e.confidence = $confidence
                 ON MATCH SET e.aliases = e.aliases + [a IN $aliases WHERE NOT a IN e.aliases],
                              e.confidence = CASE WHEN $confidence > e.confidence THEN $confidence ELSE e.confidence END
+                SET e += $properties
                 """,
                 id=node_id,
                 type=label.value,
                 canonical_name=canonical_name,
                 aliases=alias_list,
                 confidence=confidence,
+                properties=properties or {},
             )
         return node_id
+
+    def get_node_properties(self, node_id: str) -> dict:
+        with self._driver.session() as session:
+            record = session.run("MATCH (e:Entity {id: $id}) RETURN properties(e) AS props", id=node_id).single()
+            return dict(record["props"]) if record else {}
 
     def create_relation(
         self,
@@ -282,6 +292,25 @@ class GraphRepository:
     def edge_count(self) -> int:
         with self._driver.session() as session:
             return session.run("MATCH ()-[r]->() RETURN count(r) AS count").single()["count"]
+
+    def all_nodes(self) -> list[dict]:
+        """Full node export for the Graph Dataset Builder (M9) — every other
+        query method here is a targeted lookup; this and all_edges() are the
+        only two that materialize the entire graph."""
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (e:Entity) RETURN e.id AS id, e.type AS type, e.canonical_name AS canonical_name, "
+                "e.confidence AS confidence, properties(e) AS properties"
+            )
+            return [dict(record) for record in result]
+
+    def all_edges(self) -> list[dict]:
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (s:Entity)-[r]->(t:Entity) RETURN s.id AS source, t.id AS target, "
+                "type(r) AS relation_type, r.confidence AS confidence"
+            )
+            return [dict(record) for record in result]
 
 
 class InMemoryGraphRepository:
@@ -485,6 +514,33 @@ class InMemoryGraphRepository:
 
     def edge_count(self) -> int:
         return len(self._edges)
+
+    def get_node_properties(self, node_id: str) -> dict:
+        node = self._nodes.get(node_id)
+        return dict(node["properties"]) if node else {}
+
+    def all_nodes(self) -> list[dict]:
+        return [
+            {
+                "id": node["id"],
+                "type": node["type"].value,
+                "canonical_name": node["canonical_name"],
+                "confidence": node["confidence"],
+                "properties": dict(node["properties"]),
+            }
+            for node in self._nodes.values()
+        ]
+
+    def all_edges(self) -> list[dict]:
+        return [
+            {
+                "source": edge["source"],
+                "target": edge["target"],
+                "relation_type": edge["relation_type"].value,
+                "confidence": edge["confidence"],
+            }
+            for edge in self._edges.values()
+        ]
 
     @staticmethod
     def _public_node(node: dict) -> dict:

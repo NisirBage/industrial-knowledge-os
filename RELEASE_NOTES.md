@@ -1,94 +1,109 @@
-# IKIOS v1.0.1 Release Notes
+# IKIOS v1.3.0 Release Notes
 
-**Tag:** `v1.0.1` · **Date:** 2026-07-08 · **Codename:** Hardening Sprint
+**Tag:** `v1.3.0` · **Date:** 2026-07-09 · **Codename:** Graph Intelligence
 
 ## What is IKIOS?
 
 IKIOS (Industrial Knowledge Intelligence OS) is an industrial AI platform
 built for the ET AI Hackathon 2026 (Problem Statement 8: "AI for Industrial
 Knowledge Intelligence: Unified Asset & Operations Brain"). It ingests
-industrial documents, builds a structured knowledge graph, reasons over
-evidence with explicit contradiction detection, generates justified
-recommendations, learns from feedback, trains real scikit-learn models, and
-exposes a full research/benchmarking framework — seven layers, not a single
-chatbot wrapper.
+industrial documents *and images*, builds a structured knowledge graph
+spanning both, now learns from that graph via representation learning,
+reasons over evidence with explicit contradiction detection, generates
+justified recommendations, learns from feedback, trains real scikit-learn
+and graph-embedding models, and exposes a full research/benchmarking
+framework.
 
 ## Why this release exists
 
-Following v1.0.0's tag, an independent Principal AI Architect audit was
-performed against the released codebase — an adversarial due-diligence
-review, not a feature review. It found no Critical issues, but three High
-and five Medium findings worth fixing before the project sits in front of an
-enterprise pilot, a hiring panel, or the public internet. This release fixes
-all eight, adds regression tests for every one of them, and changes no
-existing API's behavior. **No new AI capability was added in this release —
-correctness, reliability, and trustworthiness only.**
+Every prior milestone read the Knowledge Graph via traversal and explicit
+rules. This release adds a graph representation learning layer underneath
+it — node embeddings, link prediction, node classification, and risk
+propagation — without touching the deterministic Knowledge Graph
+architecture or the symbolic Reasoning/Prediction pipeline those milestones
+built. Graph Intelligence becomes another reasoning source; it never
+replaces symbolic reasoning.
 
-## What changed
+## What's new
 
-- **Contradiction detection precision (was High-severity).** The detector
-  previously flagged one contradiction per *pair of evidence chunks* sharing
-  a tag with any antonym term anywhere in the chunk — a single real
-  disagreement, repeated across a handful of duplicate/near-duplicate
-  documents, could report dozens of "contradictions." It's now scoped to the
-  sentence a tag is mentioned in and deduplicated by `(tag, antonym pair)`,
-  so one real disagreement is reported once, with every supporting chunk
-  aggregated into it. 5 new regression tests, including a reproduction of
-  the exact demo-dataset scenario that originally surfaced the bug.
-- **HTTP/API test coverage (was High-severity).** All 302 prior tests
-  validated business logic directly; none exercised the FastAPI route layer.
-  49 new `TestClient` tests now cover every router's happy path and error
-  paths (validation, unknown enum values, 404s, 413s). Backend coverage went
-  from 75% to 96% as a direct result.
-- **Indirect prompt-injection hardening (was High-severity).** Document-
-  derived text reaching the LLM narrator or recommendation-refinement calls
-  is now wrapped in explicit `<retrieved_evidence>`/`<justifications>`
-  delimiters, with both system prompts instructing the model to treat that
-  content strictly as data, never as instructions. This is a mitigation, not
-  a guarantee — see [SECURITY.md](SECURITY.md#hardening-applied-in-v101) for
-  the honest scope of what this does and doesn't protect against.
-- **Upload robustness (Medium).** `/documents/upload` now validates the file
-  extension before processing (`422` for unsupported types, not a raw `500`)
-  and enforces a configurable size limit (`MAX_UPLOAD_SIZE_MB`, default
-  25MB, checked while streaming — `413` for oversized files, never fully
-  buffered in memory first).
-- **Cross-validation metrics (Medium).** `TrainingDatasetBuilder`'s CV fold
-  utility existed but was never exercised by the live training path — every
-  reported metric was a single train/test split with no variance estimate.
-  `POST /ml/train/{task}` now accepts an opt-in `include_cross_validation`
-  flag returning k-fold-averaged metrics in a clearly separate
-  `cross_validation_metrics` field, never merged with the held-out estimate.
-- **Startup performance (Medium).** The five independent dependency checks
-  (embedder, Qdrant, Neo4j, GLiNER, reranker) now run concurrently instead of
-  sequentially. Measured improvement was real but modest (~20s vs. ~25-31s
-  in this environment, with one anomalous 38s run) — reported honestly rather
-  than as the larger theoretical win a naive analysis would predict; see
-  [docs/architecture/deployment.md#startup-performance](docs/architecture/deployment.md#startup-performance).
-- **Benchmark methodology (Medium).** [docs/benchmarks/README.md](docs/benchmarks/README.md)
-  now leads with an explicit methodology/ground-truth-assumptions section
-  (single-relevant-document-per-query, single-chunk synthetic ingestion,
-  environment-dependent results) instead of burying it in trailing notes.
-- **API error handling standardized.** Every 4xx code now has a documented
-  meaning and trigger condition — see
-  [docs/api/README.md#error-handling](docs/api/README.md#error-handling).
+- **`app/graph_intelligence/`** — a new backend module with ten
+  sub-components: dataset builder (PyTorch Geometric, NetworkX, CSV,
+  GraphML, JSON exports, deterministic ordering), feature store (structural
+  + domain features, versioned like M6's Feature Store), an embedding
+  framework (Node2Vec, DeepWalk, GCN, GraphSAGE, GAT behind shared
+  Protocols — no `torch_geometric` coupling outside the module), link
+  prediction, node classification (trained against the real rule-based
+  model's own output — no fabricated ground truth), risk propagation (5
+  types, merges into the M3 Industrial Reasoning Graph), and an
+  explanation service.
+- **Graph Intelligence API** (`/api/v1/graph-intelligence/*`) — summary,
+  full graph export, per-node features, embedding training, similarity
+  search, explanations, link-prediction candidates, node-classification
+  training, and risk propagation simulation. See
+  [docs/api/README.md](docs/api/README.md#graph-intelligence-m9).
+- **Graph Intelligence Workspace** (`frontend/src/pages/
+  GraphIntelligencePage.tsx`) — a sixth frontend tab with an interactive
+  Cytoscape.js knowledge graph (zoom, filter by node type/name, community
+  coloring), embedding training, similarity search with human-readable
+  explanations, link prediction, risk propagation simulation, node
+  classification training with a live model registry table (tagged Graph
+  vs. Classical), and on-demand research benchmarks.
+- **7 new research benchmarks** covering every embedding model plus link
+  prediction and node classification — including a real train/test split
+  for link prediction (an earlier version's exact-zero MRR turned out to be
+  a genuine evaluation bug, not model weakness — fixed and documented).
+- **No parallel infrastructure, literally**: every graph model registers
+  into, is monitored by, and is explained through the exact same
+  `SqlModelRegistry`/`ModelMonitor`/`Explainer` M6 built — confirmed by
+  wiring real feature-importance output into the node-classification API
+  response using the identical `Explainer` classical models use.
+
+## Verified live, not just unit-tested
+
+Every workflow — seeding the graph via real document upload, training an
+embedding, running similarity search, training a node classifier and
+watching it appear in the shared model registry tagged "Graph," running
+every research benchmark — was exercised against the real running backend
+and the real browser-rendered frontend during development, not just green
+test output. One genuine frontend bug (an unconditional model-registry
+refresh crashing on an undefined response) was caught this way and fixed
+before release.
 
 ## Numbers
 
-- **367 tests pass** (302 → 367: 5 contradiction-detector regression tests,
-  49 API-layer tests, 6 ML cross-validation tests, plus injection-hardening
-  and audit-fix regression tests), zero regressions.
-- **96% backend coverage** (up from 75%), almost entirely from the new
-  API-layer tests closing the route-handler gap.
+- **659 tests pass** (552 backend + 107 frontend, up from 523 backend / 66
+  frontend), zero regressions in either. Spec required beyond 600.
+- Real, unedited benchmark results are published in
+  [docs/benchmarks/README.md](docs/benchmarks/README.md#graph-intelligence-benchmarks-m9),
+  including one the model didn't "win": a simple rule baseline currently
+  beats the graph-embedding node classifier on the small synthetic
+  benchmark graph — reported as-is, not tuned away.
 
 ## Not changed
 
-No existing API request/response shape changed in a breaking way — new
-fields (`cross_validation_metrics`, etc.) are additive and default to
-backward-compatible values (`null`/`false`). No new AI capability, no
-architecture redesign — this was a hardening sprint by design.
+The Knowledge Graph schema, the M3 chat orchestrator, and every existing
+API route's request/response shape are untouched. Graph Intelligence reads
+from the same `GraphRepository` every prior milestone already built and
+writes only new, additive registry entries and reasoning-graph nodes.
+
+## Known limitations, stated plainly
+
+- Heterogeneous (relation-type-aware) GNN layers are not implemented —
+  only homogeneous GCN/GraphSAGE/GAT. `to_pyg_heterogeneous()` already
+  produces the shape a future layer would consume.
+- DGL export and real temporal graph learning are architecture-only (the
+  `timestamp` field exists on graph nodes/edges; nothing consumes it yet).
+- Node classification targets are the rule-based model's own output, not
+  independently-verified historical ground truth (no such ground truth
+  exists yet for this deployment) — an honest, explicit choice, not a
+  hidden gap.
+- The Graph Intelligence workspace's node selection does not yet sync
+  across the Vision, Documents, or Chat workspaces.
+- See [docs/roadmap/README.md](docs/roadmap/README.md#graph-intelligence-m9)
+  for the complete, itemized list.
 
 ## Full history
 
 See [CHANGELOG.md](CHANGELOG.md) for the structured per-version changelog
-and [docs/RELEASE_REPORT.md](docs/RELEASE_REPORT.md) for the full technical
-narrative across all milestones (M0 through v1.0.1).
+and [docs/architecture/graph-intelligence.md](docs/architecture/graph-intelligence.md)
+for the full Graph Intelligence architecture writeup.

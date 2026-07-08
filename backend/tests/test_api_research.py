@@ -7,6 +7,62 @@ def test_run_each_auto_runnable_benchmark(client):
         assert isinstance(body["metrics"], list)
 
 
+def test_run_each_vision_benchmark(client):
+    vision_benchmarks = [
+        "vision_ocr",
+        "vision_diagram_parsing",
+        "vision_equipment_recognition",
+        "vision_gauge_reading",
+        "vision_defect_detection",
+        "vision_multimodal_retrieval",
+        "vision_latency",
+    ]
+    for benchmark_name in vision_benchmarks:
+        response = client.post(f"/api/v1/research/benchmarks/{benchmark_name}/run", json={"sample_size": 5, "seed": 1})
+        assert response.status_code == 200, f"{benchmark_name} failed: {response.text}"
+        body = response.json()
+        assert body["benchmark_name"] == benchmark_name
+        assert isinstance(body["metrics"], list)
+        assert len(body["metrics"]) > 0
+
+
+def test_run_each_graph_benchmark(client):
+    graph_benchmarks = [
+        "graph_embedding_node2vec",
+        "graph_embedding_deepwalk",
+        "graph_embedding_gcn",
+        "graph_embedding_graphsage",
+        "graph_embedding_gat",
+        "graph_link_prediction",
+        "graph_node_classification",
+    ]
+    for benchmark_name in graph_benchmarks:
+        response = client.post(f"/api/v1/research/benchmarks/{benchmark_name}/run", json={"sample_size": 5, "seed": 1})
+        assert response.status_code == 200, f"{benchmark_name} failed: {response.text}"
+        body = response.json()
+        assert body["benchmark_name"] == benchmark_name
+        assert isinstance(body["metrics"], list)
+        assert len(body["metrics"]) > 0
+
+
+def test_graph_benchmark_run_appears_in_history(client):
+    client.post("/api/v1/research/benchmarks/graph_link_prediction/run", json={"sample_size": 5, "seed": 4})
+
+    response = client.get("/api/v1/research/benchmarks/graph_link_prediction/history")
+
+    assert response.status_code == 200
+    assert all(e["name"] == "benchmark:graph_link_prediction" for e in response.json())
+
+
+def test_vision_benchmark_run_appears_in_history(client):
+    client.post("/api/v1/research/benchmarks/vision_gauge_reading/run", json={"sample_size": 5, "seed": 4})
+
+    response = client.get("/api/v1/research/benchmarks/vision_gauge_reading/history")
+
+    assert response.status_code == 200
+    assert all(e["name"] == "benchmark:vision_gauge_reading" for e in response.json())
+
+
 def test_run_non_auto_runnable_benchmark_returns_400(client):
     response = client.post("/api/v1/research/benchmarks/hybrid_retrieval/run", json={"sample_size": 5, "seed": 1})
 

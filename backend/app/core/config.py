@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     ml_registry_db_url: str = "sqlite+aiosqlite:///./ikios_ml_registry.db"
     ml_models_dir: str = "./.ml_models"
 
+    vision_db_url: str = "sqlite+aiosqlite:///./ikios_vision.db"
+    vision_images_dir: str = "./.vision_images"
+
     embedding_model: str = "BAAI/bge-small-en-v1.5"
 
     gliner_model: str = "urchade/gliner_mediumv2.1"

@@ -5,6 +5,16 @@ dependency is constructed here and only here, so any layer can be swapped
 without touching the modules that consume it.
 """
 
+# Windows-specific DLL load-order bug (M9): importing `neo4j` before `torch`
+# in the same process reliably breaks torch's native DLL init
+# (`OSError: [WinError 1114] ... c10.dll`) on this platform — reproduced
+# with a two-line repro (`from neo4j import GraphDatabase; import torch`
+# fails; swapping the order works every time). Neither library is at fault
+# in isolation; some shared native dependency (likely OpenSSL) conflicts
+# depending on load order. Importing torch first, here, before
+# `build_graph_repository` (which imports neo4j) ever runs, is the fix.
+import torch  # noqa: F401
+
 import asyncio
 import logging
 import time
@@ -35,6 +45,9 @@ from app.evidence.graph import EvidenceGraphBuilder
 from app.features.extractor import RuleBasedFeatureExtractor
 from app.feedback.engine import FeedbackEngine
 from app.graph.knowledge_graph_builder import KnowledgeGraphBuilder
+from app.graph_intelligence.feature_store.store import GraphFeatureStore
+from app.graph_intelligence.orchestration import GraphEmbeddingTrainer, GraphInferenceEngine
+from app.graph_intelligence.propagation import GraphPropagationEngine
 from app.ml.explainability.explainer import Explainer
 from app.ml.feature_store.store import FeatureStore
 from app.ml.monitoring.monitor import ModelMonitor
@@ -63,6 +76,15 @@ from app.services.chat_service import ChatService
 from app.services.ingestion_service import IngestionService
 from app.services.llm_provider import build_llm_provider
 from app.timeline.engine import TimelineEngine
+from app.vision.defect.detector import ClassicalCVDefectDetector
+from app.vision.detection.detector import ClassicalCVObjectDetector
+from app.vision.diagram.parser import ClassicalCVDiagramParser
+from app.vision.gauge.reader import GaugeReader
+from app.vision.graph.builder import VisionKnowledgeGraphBuilder
+from app.vision.ingestion.repository import VisionMetadataRepository
+from app.vision.ingestion.service import VisionIngestionService
+from app.vision.ocr.provider import build_ocr_provider
+from app.vision.retrieval.multimodal import MultimodalRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +95,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     startup_start = time.perf_counter()
 
-    # These five checks are independent at construction time (each either
+    # These six checks are independent at construction time (each either
     # connects to/loads a real dependency or falls back) — running them
     # concurrently via threads bounds cold-start time by the slowest single
     # check instead of their sum, in principle. v1.0.1 hardening: measured
@@ -83,7 +105,8 @@ async def lifespan(app: FastAPI):
     # network-bound (HTTP/DNS resolution attempts) and their individual
     # durations vary run to run rather than summing predictably. See
     # docs/architecture/deployment.md#startup-performance for the honest
-    # measured numbers, including one anomalous ~39s run.
+    # measured numbers, including one anomalous ~39s run. M7 adds a sixth:
+    # the OCR provider (EasyOCR model load), same degrade-not-crash pattern.
     embedder_task = asyncio.to_thread(build_embedder, settings.embedding_model)
     vector_repository_task = asyncio.to_thread(
         build_vector_repository, settings.qdrant_url, settings.qdrant_collection, settings.qdrant_local_path
@@ -93,6 +116,7 @@ async def lifespan(app: FastAPI):
     )
     entity_extractors_task = asyncio.to_thread(build_entity_extractors, settings.gliner_model, settings.gliner_threshold)
     reranker_task = asyncio.to_thread(build_reranker, settings.reranker_model)
+    ocr_provider_task = asyncio.to_thread(build_ocr_provider)
 
     (
         embedder,
@@ -100,8 +124,9 @@ async def lifespan(app: FastAPI):
         graph_repository,
         (primary_extractor, supplement_extractor),
         reranker,
+        ocr_provider,
     ) = await asyncio.gather(
-        embedder_task, vector_repository_task, graph_repository_task, entity_extractors_task, reranker_task
+        embedder_task, vector_repository_task, graph_repository_task, entity_extractors_task, reranker_task, ocr_provider_task
     )
     graph_repository.ensure_constraints()
 
@@ -162,7 +187,14 @@ async def lifespan(app: FastAPI):
     await learning_repository.init_models()
     timeline_engine = TimelineEngine(graph_repository)
     feature_extractor = RuleBasedFeatureExtractor(graph_repository, timeline_engine, learning_repository)
-    prediction_engine = PredictionEngine(feature_extractor, build_rule_based_models(), learning_repository)
+    # Kept as its own dict, not just what's passed into PredictionEngine —
+    # M6/M9 both swap trained models into the engine at runtime via
+    # register_model(), which would otherwise make "the rule baseline"
+    # unrecoverable once a task_type's slot is occupied by a trained model.
+    # Graph Intelligence (M9) needs the *original* rule-based model as its
+    # training target regardless of what's currently live.
+    rule_based_models = build_rule_based_models()
+    prediction_engine = PredictionEngine(feature_extractor, dict(rule_based_models), learning_repository)
     feedback_engine = FeedbackEngine(learning_repository)
 
     app.state.learning_repository = learning_repository
@@ -170,6 +202,7 @@ async def lifespan(app: FastAPI):
     app.state.feature_extractor = feature_extractor
     app.state.prediction_engine = prediction_engine
     app.state.feedback_engine = feedback_engine
+    app.state.rule_based_models = rule_based_models
 
     # Research Layer (M5): also independent of the chat orchestrator. Reuses
     # the same entity_extraction_service/relation_extractor/graph_repository
@@ -197,6 +230,38 @@ async def lifespan(app: FastAPI):
     app.state.ml_explainer = Explainer()
     app.state.model_monitor = ModelMonitor(learning_repository)
     app.state.model_registry = ml_model_registry
+
+    # Vision (M7): also independent of the chat orchestrator. Reuses the same
+    # graph_repository and entity_extraction_service instances above so
+    # visual evidence lands in the exact graph text retrieval already reads,
+    # and multimodal queries resolve entities with the exact same service —
+    # "never bypass the Knowledge Graph" from the M7 spec, satisfied
+    # structurally rather than by convention (same instances, not new ones).
+    vision_metadata_repository = VisionMetadataRepository(settings.vision_db_url)
+    await vision_metadata_repository.init_models()
+
+    app.state.vision_metadata_repository = vision_metadata_repository
+    app.state.vision_ingestion_service = VisionIngestionService(vision_metadata_repository, Path(settings.vision_images_dir))
+    app.state.vision_ocr_provider = ocr_provider
+    app.state.vision_diagram_parser = ClassicalCVDiagramParser()
+    app.state.vision_object_detector = ClassicalCVObjectDetector()
+    app.state.vision_gauge_reader = GaugeReader()
+    app.state.vision_defect_detector = ClassicalCVDefectDetector()
+    app.state.vision_graph_builder = VisionKnowledgeGraphBuilder(graph_repository)
+    app.state.multimodal_retriever = MultimodalRetriever(retriever, graph_repository, entity_extraction_service)
+
+    # Graph Intelligence (M9): also independent of the chat orchestrator.
+    # Reuses graph_repository, learning_repository, and ml_model_registry —
+    # every trained artifact (embeddings, link predictors, graph-embedding
+    # PredictionModels) registers into the *same* SqlModelRegistry M6 built,
+    # not a parallel one. graph_embedding_cache starts empty; the first
+    # POST /graph-intelligence/embeddings/train call (or a restart that
+    # finds a prior run in the registry) populates it.
+    app.state.graph_feature_store = GraphFeatureStore(graph_repository, learning_repository)
+    app.state.graph_embedding_trainer = GraphEmbeddingTrainer(graph_repository, ml_model_registry)
+    app.state.graph_inference_engine = GraphInferenceEngine(graph_repository, ml_model_registry)
+    app.state.graph_propagation_engine = GraphPropagationEngine(graph_repository)
+    app.state.graph_embedding_cache = None
 
     logger.info("Application startup complete in %.2fs", time.perf_counter() - startup_start)
 

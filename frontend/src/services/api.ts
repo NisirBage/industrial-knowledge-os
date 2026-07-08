@@ -283,3 +283,315 @@ export async function computeDrift(baseline: number[], recent: number[]): Promis
   });
   return handleResponse<DriftResult>(response);
 }
+
+// --- Vision (M7) ---
+
+export interface VisionDocument {
+  id: string;
+  filename: string;
+  source_type: string;
+  content_type: string;
+  width: number;
+  height: number;
+  size_bytes: number;
+  equipment_hint: string | null;
+}
+
+export interface OCRRegion {
+  text: string;
+  confidence: number;
+  bounding_box: number[];
+  graph_node_id: string | null;
+}
+
+export interface DiagramSymbol {
+  symbol_type: string;
+  confidence: number;
+  bounding_box: number[];
+  graph_node_id: string | null;
+}
+
+export interface Detection {
+  equipment_type: string;
+  confidence: number;
+  bounding_box: number[];
+  graph_node_id: string | null;
+}
+
+export interface GaugeReading {
+  needle_angle_degrees: number | null;
+  normalized_value: number | null;
+  confidence: number;
+  valid: boolean;
+  validation_note: string;
+  bounding_box: number[];
+  graph_node_id: string | null;
+}
+
+export interface Defect {
+  defect_type: string;
+  confidence: number;
+  severity: string;
+  bounding_box: number[];
+  graph_node_id: string | null;
+}
+
+export interface VisionAnalysis {
+  image_id: string;
+  ocr_regions: OCRRegion[];
+  diagram_symbols: DiagramSymbol[];
+  detections: Detection[];
+  gauge_readings: GaugeReading[];
+  defects: Defect[];
+}
+
+export interface MultimodalQueryResponse {
+  evidence: Evidence[];
+}
+
+export const VISION_SOURCE_TYPES = [
+  "inspection_photo",
+  "equipment_photo",
+  "pid_diagram",
+  "electrical_schematic",
+  "engineering_drawing",
+  "maintenance_image",
+  "handwritten_note",
+] as const;
+
+export const VISION_BENCHMARKS = [
+  "vision_ocr",
+  "vision_diagram_parsing",
+  "vision_equipment_recognition",
+  "vision_gauge_reading",
+  "vision_defect_detection",
+  "vision_multimodal_retrieval",
+  "vision_latency",
+] as const;
+
+export async function uploadVisionImage(file: File, sourceType: string, equipmentHint?: string): Promise<VisionDocument> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("source_type", sourceType);
+  if (equipmentHint) formData.append("equipment_hint", equipmentHint);
+  const response = await fetch(`${API_BASE_URL}/vision/images`, {
+    method: "POST",
+    body: formData,
+  });
+  return handleResponse<VisionDocument>(response);
+}
+
+export async function listVisionImages(): Promise<VisionDocument[]> {
+  const response = await fetch(`${API_BASE_URL}/vision/images`);
+  return handleResponse<VisionDocument[]>(response);
+}
+
+export async function getVisionImage(imageId: string): Promise<VisionDocument> {
+  const response = await fetch(`${API_BASE_URL}/vision/images/${imageId}`);
+  return handleResponse<VisionDocument>(response);
+}
+
+export async function analyzeVisionImage(imageId: string): Promise<VisionAnalysis> {
+  const response = await fetch(`${API_BASE_URL}/vision/images/${imageId}/analyze`, {
+    method: "POST",
+  });
+  return handleResponse<VisionAnalysis>(response);
+}
+
+export async function multimodalQuery(query: string, topK = 8): Promise<MultimodalQueryResponse> {
+  const response = await fetch(`${API_BASE_URL}/vision/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+  return handleResponse<MultimodalQueryResponse>(response);
+}
+
+export function visionImageUrl(imageId: string): string {
+  return `${API_BASE_URL}/vision/images/${imageId}/file`;
+}
+
+// --- Graph Intelligence (M9) ---
+
+export interface GraphSummary {
+  node_count: number;
+  edge_count: number;
+  node_types: string[];
+  relation_types: string[];
+}
+
+export interface GraphNode {
+  id: string;
+  type: string;
+  canonical_name: string;
+  confidence: number;
+  community_id: number | null;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  relation_type: string;
+  confidence: number;
+}
+
+export interface GraphExport {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface NodeFeatures {
+  node_id: string;
+  canonical_name: string;
+  equipment_type: string;
+  degree: number;
+  pagerank: number;
+  betweenness: number;
+  community_id: number | null;
+  maintenance_count: number;
+  incident_count: number;
+  visual_observation_count: number;
+  ocr_confidence: number | null;
+  defect_count: number;
+  prediction_confidence: number | null;
+  recommendation_acceptance_rate: number | null;
+}
+
+export interface EmbeddingTrainResult {
+  model_id: string;
+  model_name: string;
+  dimensions: number;
+  node_count: number;
+  training_seconds: number;
+}
+
+export interface SimilarNode {
+  node_id: string;
+  canonical_name: string;
+  score: number;
+}
+
+export interface GraphExplanation {
+  node_id: string;
+  nearest_neighbors: SimilarNode[];
+  important_edges: string[];
+  community_id: number | null;
+  supporting_evidence: string[];
+  confidence: number;
+  text: string;
+}
+
+export interface LinkPredictionCandidate {
+  source_id: string;
+  target_id: string;
+  target_canonical_name: string;
+  confidence: number;
+  embedding_similarity: number;
+  explanation: string;
+}
+
+export interface NodeClassificationResult {
+  registered: boolean;
+  task_type: string;
+  algorithm: string | null;
+  sample_size: number;
+  feature_importance: FeatureImportance[];
+}
+
+export interface PropagationStep {
+  node_id: string;
+  canonical_name: string;
+  depth: number;
+  propagated_risk: number;
+  path: string[];
+}
+
+export interface PropagationResult {
+  source_node_id: string;
+  propagation_type: string;
+  steps: PropagationStep[];
+}
+
+export const GRAPH_EMBEDDING_MODELS = ["node2vec", "deepwalk", "gcn", "graphsage", "gat"] as const;
+export const PROPAGATION_TYPES = ["failure", "leak", "maintenance_delay", "inspection_gap", "compliance_violation"] as const;
+export const GRAPH_BENCHMARKS = [
+  "graph_embedding_node2vec",
+  "graph_embedding_deepwalk",
+  "graph_embedding_gcn",
+  "graph_embedding_graphsage",
+  "graph_embedding_gat",
+  "graph_link_prediction",
+  "graph_node_classification",
+] as const;
+
+export async function getGraphSummary(): Promise<GraphSummary> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/summary`);
+  return handleResponse<GraphSummary>(response);
+}
+
+export async function getGraphExport(): Promise<GraphExport> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/graph`);
+  return handleResponse<GraphExport>(response);
+}
+
+export async function getNodeFeatures(equipmentName: string): Promise<NodeFeatures> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/features/${encodeURIComponent(equipmentName)}`);
+  return handleResponse<NodeFeatures>(response);
+}
+
+export async function listGraphEmbeddingModels(): Promise<string[]> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/embeddings/models`);
+  return handleResponse<string[]>(response);
+}
+
+export async function trainGraphEmbeddings(modelName: string, dimensions = 32): Promise<EmbeddingTrainResult> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/embeddings/train`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model_name: modelName, dimensions }),
+  });
+  return handleResponse<EmbeddingTrainResult>(response);
+}
+
+export async function getSimilarNodes(equipmentName: string, topK = 5): Promise<SimilarNode[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/graph-intelligence/similarity/${encodeURIComponent(equipmentName)}?top_k=${topK}`,
+  );
+  return handleResponse<SimilarNode[]>(response);
+}
+
+export async function explainNode(equipmentName: string): Promise<GraphExplanation> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/explain/${encodeURIComponent(equipmentName)}`);
+  return handleResponse<GraphExplanation>(response);
+}
+
+export async function getLinkPredictionCandidates(equipmentName: string, topK = 5): Promise<LinkPredictionCandidate[]> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/link-prediction/candidates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ equipment_name: equipmentName, top_k: topK }),
+  });
+  return handleResponse<LinkPredictionCandidate[]>(response);
+}
+
+export async function trainNodeClassifier(taskType: string, equipmentNames: string[]): Promise<NodeClassificationResult> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/node-classification/train`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_type: taskType, equipment_names: equipmentNames }),
+  });
+  return handleResponse<NodeClassificationResult>(response);
+}
+
+export async function simulatePropagation(
+  equipmentName: string,
+  propagationType = "failure",
+  maxDepth = 3,
+): Promise<PropagationResult> {
+  const response = await fetch(`${API_BASE_URL}/graph-intelligence/propagation/simulate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ equipment_name: equipmentName, propagation_type: propagationType, max_depth: maxDepth }),
+  });
+  return handleResponse<PropagationResult>(response);
+}

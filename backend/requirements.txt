@@ -21,3 +21,12 @@ pytest-asyncio==0.25.0
 pandas==2.2.3
 scikit-learn==1.6.0
 pyarrow==18.1.0
+opencv-python-headless==5.0.0.93
+easyocr==1.7.2
+pillow==12.3.0
+torch==2.12.1
+torch_geometric==2.8.0
+networkx==3.4.2
+gensim==4.4.0
+python-louvain==0.16
+psutil==7.0.0

@@ -14,7 +14,7 @@ page presents real captured text/JSON output, plus Mermaid diagrams built
 from real graph data. **If you're picking this repo up, dropping in real
 PNG/GIF screenshots here is a great first contribution** — run
 `./run-dev.sh`, seed the demo data, and capture Chat/Documents/Research/ML
-Lab. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Lab/Vision. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Example Chat session
 
@@ -128,6 +128,65 @@ See [docs/architecture/ml-lab.md](../architecture/ml-lab.md) for the full
 pipeline this comes from, and the ML Lab workspace
 (`frontend/src/pages/MLLabPage.tsx`) for how it's charted (ROC curve,
 calibration curve, feature importance, confusion matrix).
+
+## Example Vision Workspace session
+
+Real captured output from the running Vision Workspace (`frontend/src/pages/VisionPage.tsx`),
+verified live against the real backend the same way every other example on
+this page was — via the accessibility tree and network responses of the
+actual running frontend, same screenshot-tooling limitation noted above.
+
+Uploading a 200×200 synthetic test image (a gray background with one dark
+rectangle, `POST /api/v1/vision/images`) and running analysis
+(`POST /api/v1/vision/images/{id}/analyze`) produced this real completion
+checklist in the UI:
+
+```
+✓ OCR complete — 0 region(s) · ✓ Detection complete — 1 object(s) ·
+✓ Diagram parsing complete — 5 symbol(s) · ✓ Gauge reading complete — 0 gauge(s) ·
+✓ Defect detection complete — 0 defect(s) · ✓ Graph integration complete
+```
+
+The Knowledge Graph panel rendered one row per created graph node, each with
+its real `graph_node_id` (truncated to 8 characters) returned by the API —
+confirming the "click a result to see its graph node" wiring actually
+resolves to real graph entities, not placeholder ids:
+
+| Type | Label | Confidence | Graph Node |
+| --- | --- | --- | --- |
+| Detected Object | unknown | 55% | a081bc1f |
+| Diagram Symbol | pump | 50% | fc837a10 |
+| Diagram Symbol | pipe | 50% | 9132e5b8 |
+| Diagram Symbol | pipe | 50% | 78626826 |
+| Diagram Symbol | pipe | 50% | d03061c4 |
+| Diagram Symbol | pipe | 50% | 7c89ca8d |
+
+Clicking the "unknown" detection's overlay box or its Knowledge Graph row
+increases that box's SVG `stroke-width` from `2` to `4` — verified directly
+against the DOM, confirming click-to-highlight actually synchronizes the
+Interactive Viewer, the Analysis Results list, and the Knowledge Graph panel
+through one shared selection key, not three independent UI states.
+
+Asking the Multimodal Query panel *"What defects were detected?"* against
+this session's seeded demo dataset (`POST /api/v1/vision/query`) returned
+real text evidence about Pump P-101 and Valve V-2201A from the ingested demo
+documents — correctly labeled `Text` (not `Visual`, since no visual evidence
+was attached to those specific entities in this session) — confirming
+`MultimodalRetriever` and the Vision Workspace's evidence-source badges
+agree on what counts as "visual" vs. "text" evidence.
+
+Running the `vision_gauge_reading` benchmark from the Research section
+(`POST /api/v1/research/benchmarks/vision_gauge_reading/run`) produced:
+
+```
+mean_absolute_error=0.0096, valid_reading_rate=1
+0.112s
+```
+
+Real numbers from a real run, not canned output — see
+[docs/architecture/vision.md](../architecture/vision.md) for the full Vision
+subsystem and [multimodal-retrieval.md](../architecture/multimodal-retrieval.md)
+for how evidence sources are labeled.
 
 ## Example Research Framework output
 

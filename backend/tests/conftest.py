@@ -15,6 +15,16 @@ session-scoped storage — never the developer's real `ikios_*.db` files or
 environment's data, and repeated runs start from a clean slate.
 """
 
+# Windows-specific DLL load-order bug (M9): importing `neo4j` before `torch`
+# in the same process reliably breaks torch's native DLL init on this
+# platform (`OSError: [WinError 1114] ... c10.dll`) — whichever library's
+# test file pytest happens to collect first otherwise decides this by
+# accident. conftest.py is always imported before any test module in its
+# directory, so importing torch here first fixes it deterministically for
+# the whole suite, regardless of collection order. See app/main.py for the
+# same fix applied to the running app.
+import torch  # noqa: F401
+
 import os
 import tempfile
 
@@ -30,6 +40,8 @@ _ENV_KEYS = [
     "ML_REGISTRY_DB_URL",
     "ML_MODELS_DIR",
     "QDRANT_LOCAL_PATH",
+    "VISION_DB_URL",
+    "VISION_IMAGES_DIR",
 ]
 
 
@@ -43,6 +55,8 @@ def client():
         "ML_REGISTRY_DB_URL": f"sqlite+aiosqlite:///{tmp_dir}/ml_registry.db",
         "ML_MODELS_DIR": os.path.join(tmp_dir, "ml_models"),
         "QDRANT_LOCAL_PATH": os.path.join(tmp_dir, "qdrant_local"),
+        "VISION_DB_URL": f"sqlite+aiosqlite:///{tmp_dir}/vision.db",
+        "VISION_IMAGES_DIR": os.path.join(tmp_dir, "vision_images"),
     }
     previous = {key: os.environ.get(key) for key in _ENV_KEYS}
     os.environ.update(overrides)

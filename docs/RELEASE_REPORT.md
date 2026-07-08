@@ -1,6 +1,6 @@
 # IKIOS Release Report: The Evolution of an Industrial AI Platform
 
-This is the technical narrative behind IKIOS v1.0.1 — not a changelog (see
+This is the technical narrative behind IKIOS v1.2.0 — not a changelog (see
 [CHANGELOG.md](../CHANGELOG.md) for that), but the story of *why* each
 milestone was built the way it was, what was learned, and what tradeoffs were
 made deliberately rather than by accident.
@@ -186,6 +186,92 @@ attractive but false prediction stand. This is the same standard the RC1
 benchmark reporting held itself to, applied to a performance claim instead
 of an accuracy number: measure, then report what was actually measured, not
 what the analysis predicted.
+
+## M7 — Multimodal Vision Intelligence Platform
+
+**Goal:** stop being document-centric. Reason jointly over text, engineering
+diagrams, and photographs — without bypassing the Knowledge Graph or Evidence
+Fusion to do it.
+
+Ten subsystems were built under a single independent-subsystem principle:
+every vision analysis result (an OCR hit, a detected symbol, a gauge reading,
+a defect) becomes an ordinary graph node through the *same*
+`GraphRepositoryProtocol` every other layer writes to, and an ordinary
+`Evidence` instance (just tagged `source="vision:*"`) through the *same*
+dataclass text retrieval already produces. `EvidenceFusionEngine`,
+`ContradictionDetector`, and `ReasoningGraphBuilder` needed zero code changes
+— the strongest evidence that the M1-M6 architecture's core abstractions
+(Protocol-typed repositories, a uniform `Evidence` shape) were general enough
+to absorb an entirely new modality without a rewrite, which was the explicit
+success criterion for this milestone.
+
+Two decisions were made deliberately conservative rather than impressive:
+classical OpenCV computer vision (Hough transforms, contour detection, HSV
+thresholding) over a deep-learning baseline, and real detectors for exactly
+2 of 8 documented defect types (corrosion, crack) with the other 6 explicitly
+declared architecture-only. Both were checked directly against this
+environment first — network access to Hugging Face actually works here
+(confirmed by testing, not assumed), so EasyOCR's real model downloads and
+loads — before deciding OCR would be a genuine capability rather than another
+documented fallback.
+
+Building the Vision Knowledge Graph surfaced a real, previously-unexercised
+bug: `GraphRepository.create_node()`'s Neo4j implementation accepted a
+`properties` argument and silently never persisted it — nothing before M7
+ever passed one. It's fixed, with regression tests, alongside a new
+`get_node_properties()` method the Multimodal Retriever needed to read
+vision-node confidence back out (a scoped, deliberate choice not to widen
+`find_neighbors()`'s shared return shape for one new consumer).
+
+A second, quieter gap surfaced during API-layer testing: `MultimodalRetriever`
+crashed with a raw `500` when queried before any document had ever been
+ingested, because — unlike the chat pipeline's `TaskGraphExecutor`, which
+catches exceptions per task node — it called the text retriever directly
+with no such protection. A fresh deployment queried on its very first
+interaction is a legitimate state, not a bug; fixed to degrade to
+visual-evidence-only, matching the graceful-degradation discipline every
+other layer of this platform already holds itself to.
+
+## M7.1 — Vision Workspace (Frontend)
+
+**Goal:** finish what M7 started. A backend nobody can click through isn't a
+platform feature yet — it's an API.
+
+This was the smallest-scope milestone in the project's history by design:
+build one frontend page, following four existing pages' conventions exactly,
+touching the backend only for "minor API fixes discovered during
+integration." That constraint turned out to be genuinely useful rather than
+limiting — it forced two real gaps to surface and get fixed cleanly instead
+of being worked around in the frontend: nothing served the actual image
+bytes for the viewer to render (`GET /vision/images/{id}/file`, added), and
+nothing in the API response linked a detection back to the specific graph
+node created for it (`graph_node_id`, threaded through by zipping the node
+ids `VisionKnowledgeGraphBuilder.add_*()` already returned — no new graph
+query needed).
+
+Live verification against the real running backend caught something a
+type-checker and a green test suite both would have missed: after restarting
+the backend to pick up the schema changes, the in-memory knowledge graph
+(active because Neo4j isn't running in this environment) came back empty,
+so a freshly-uploaded image's equipment hint couldn't resolve to a graph
+entity yet. Not a bug — documented, expected behavior of the fallback path —
+but it meant the "click a detection, see its graph node" verification had to
+first re-ingest a text document to recreate the entity, then re-run
+analysis, before the multimodal query could show `vision:*` evidence. This
+is exactly the kind of gap that only shows up when you actually drive the
+running app end to end, which is why this project verifies that way every
+milestone rather than trusting tests alone.
+
+The frontend itself had zero test coverage before this milestone — not a
+gap unique to Vision, a gap in the whole project. Adding Vitest + React
+Testing Library from scratch surfaced one immediate lesson: without
+Vitest's `globals: true` setting, `@testing-library/react`'s automatic
+DOM cleanup between tests silently doesn't register, so the first test run
+showed 41 of 51 tests failing with "found multiple elements" errors — every
+test after the first was querying against DOM accumulated from every
+previous test's render. The fix was a three-line `afterEach(cleanup)` in the
+shared setup file, but finding it required actually reading what "multiple
+elements" meant rather than assuming the component itself was broken.
 
 ---
 
