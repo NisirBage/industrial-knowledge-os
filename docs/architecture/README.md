@@ -14,6 +14,7 @@
 - [Multimodal Retrieval](multimodal-retrieval.md) — text + visual evidence fusion deep-dive
 - [Research Framework](research.md) — benchmarks, experiments, A/B testing
 - [Graph Intelligence](graph-intelligence.md) — graph representation learning, embeddings, link prediction, node classification, risk propagation
+- [Retrieval & Knowledge Optimization](retrieval-optimization.md) — caching, parallel retrieval, learning-to-rank, entity resolution, context compression, explainability
 - [Deployment](deployment.md) — fallback matrix, environments, Docker
 
 Each doc includes Mermaid diagrams that render directly in GitHub. Start with

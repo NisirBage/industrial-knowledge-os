@@ -9,6 +9,7 @@ information," not an error.
 """
 
 import logging
+from concurrent.futures import Executor
 from typing import Callable
 
 from app.entity_extraction.schemas import ExtractedEntity
@@ -32,22 +33,36 @@ _GRAPH_HISTORY_CONFIDENCE = 0.5
 
 
 class TaskGraphExecutor:
-    def __init__(self, retriever: HybridRetriever, graph_repository: GraphRepositoryProtocol):
+    def __init__(self, retriever: HybridRetriever, graph_repository: GraphRepositoryProtocol, executor: Executor | None = None):
         self._retriever = retriever
         self._graph_repository = graph_repository
+        # O1 Component 4: when provided, every node within one dependency
+        # level (see TaskGraph.levels()) runs concurrently instead of
+        # sequentially — `None` (the default) preserves the exact prior
+        # one-node-at-a-time behavior.
+        self._executor = executor
 
     def execute(self, task_graph: TaskGraph, query: str, query_entities: list[ExtractedEntity]) -> TaskGraph:
-        for node in task_graph.topological_order():
-            try:
-                node.result = self._run_node(node, query, query_entities)
-                node.confidence = max((e.confidence for e in node.result), default=0.0)
-                node.status = TaskStatus.COMPLETED
-            except Exception:
-                logger.exception("Task node %s (%s) failed to execute", node.id, node.type)
-                node.result = []
-                node.confidence = 0.0
-                node.status = TaskStatus.FAILED
+        for level in task_graph.levels():
+            if self._executor is None or len(level) == 1:
+                for node in level:
+                    self._execute_node(node, query, query_entities)
+            else:
+                futures = {self._executor.submit(self._execute_node, node, query, query_entities): node for node in level}
+                for future in futures:
+                    future.result()  # propagate any unexpected exception from _execute_node itself
         return task_graph
+
+    def _execute_node(self, node: TaskNode, query: str, query_entities: list[ExtractedEntity]) -> None:
+        try:
+            node.result = self._run_node(node, query, query_entities)
+            node.confidence = max((e.confidence for e in node.result), default=0.0)
+            node.status = TaskStatus.COMPLETED
+        except Exception:
+            logger.exception("Task node %s (%s) failed to execute", node.id, node.type)
+            node.result = []
+            node.confidence = 0.0
+            node.status = TaskStatus.FAILED
 
     def _run_node(self, node: TaskNode, query: str, query_entities: list[ExtractedEntity]) -> list[Evidence]:
         if node.type == TaskType.GENERAL_RETRIEVAL:

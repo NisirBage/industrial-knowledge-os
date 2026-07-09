@@ -60,20 +60,31 @@ class TaskGraph:
         """Kahn's algorithm. Raises ValueError on a dependency cycle —
         planner-generated graphs should never produce one, so a cycle here
         indicates a planner bug, not bad input data."""
+        return [node for level in self.levels() for node in level]
+
+    def levels(self) -> list[list[TaskNode]]:
+        """Same Kahn's-algorithm traversal as `topological_order()`, but
+        grouped by round instead of flattened — every node within a round
+        has all of its dependencies already satisfied by earlier rounds and
+        no dependency on any other node in its own round, so the nodes
+        within one round are safe to execute concurrently (O1 Component 4's
+        parallel executor groups work this way). `topological_order()` stays
+        the simple, backward-compatible flattened view for any caller that
+        only needs *an* ordering, not the parallelism structure."""
         remaining = {node.id: set(node.dependencies) for node in self.nodes}
-        ordered: list[TaskNode] = []
+        levels: list[list[TaskNode]] = []
 
         while remaining:
             ready_ids = [node_id for node_id, deps in remaining.items() if not deps]
             if not ready_ids:
                 raise ValueError("Task graph has a dependency cycle")
+            levels.append([self.get(node_id) for node_id in ready_ids])
             for node_id in ready_ids:
-                ordered.append(self.get(node_id))
                 del remaining[node_id]
             for deps in remaining.values():
                 deps.difference_update(ready_ids)
 
-        return ordered
+        return levels
 
     def all_completed(self) -> bool:
         return all(node.status == TaskStatus.COMPLETED for node in self.nodes)

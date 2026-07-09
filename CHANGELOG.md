@@ -6,6 +6,72 @@ All notable changes to IKIOS are documented here. Format loosely follows
 development milestone rather than individual commits, since each milestone
 is the unit of "no regressions, tests pass" verification this project uses.
 
+## [1.4.0] — O1/O1.2: Retrieval & Knowledge Optimization
+
+A pure optimization milestone: no new end-user functionality, complete
+backward compatibility. Every capability is an optional collaborator
+(default `None`/off) added to the existing `HybridRetriever` and
+`TaskGraphExecutor` interfaces — the Planner, Industrial Reasoning Graph,
+Recommendation Engine, and Prediction Engine are untouched. Verified by the
+entire pre-existing test suite passing unmodified alongside 121 new tests
+(712 backend + 113 frontend = 825 total, up from 659).
+
+### Added
+- **`app/caching/`** — generic thread-safe `LRUTTLCache` (LRU+TTL, real hit/
+  miss/eviction stats), four independent instances wired into
+  `HybridRetriever` (embedding/expansion/reranker/result caches). New
+  `GET /observability/cache-stats`.
+- **Parallel Retrieval Executor** — `HybridRetriever`'s internal graph
+  expansion / BM25 / vector search now run concurrently given an injected
+  `Executor`; `TaskGraph.levels()` groups planner nodes by dependency round
+  so `TaskGraphExecutor` can run every node in a round concurrently. Two
+  separate `ThreadPoolExecutor`s (documented nested-submission deadlock
+  avoidance) wired in `main.py`.
+- **`app/retrieval/ranking/`** — Learning-to-Rank: a `Ranker` Protocol,
+  `ReciprocalRankFusionRanker` (formula-based, no tunable weights),
+  `LightGBMRanker` (real LambdaMART, honest RRF fallback when untrained),
+  a documented `NeuralRanker` stub. `POST /ranking/train` builds labeled
+  queries directly from the live Knowledge Graph and hot-swaps a trained
+  ranker into production retrieval.
+- **Retrieval Explainability** — `Evidence.ltr_score`, plus API-level
+  `final_rank` and a real computed `explanation` string
+  (`app/retrieval/explain.py`) per evidence item; rendered as an expandable
+  "Why was this retrieved?" section in the Chat UI.
+- **`app/entity_resolution/`** — `EntityResolver` combines edit distance,
+  ontology similarity, graph-neighborhood similarity, embedding similarity,
+  and acronym expansion into an explainable merge decision
+  (`canonical_id`/`aliases`/`confidence`/`merge_reason`). `GraphMerger`
+  merges duplicate Knowledge Graph nodes (edges redirected, properties
+  merged, provenance recorded) and supports `rollback()`. New
+  `/entity-resolution/duplicates`, `/entity-resolution/merge`,
+  `/entity-resolution/rollback`, plus a Research Dashboard "Duplicate
+  Candidates" panel with a one-click Merge action.
+- **`app/context_compression/`** — exact + near-duplicate removal, adjacent
+  timeline merging, real `sklearn.cluster.AgglomerativeClustering` semantic
+  clustering, three configurable levels (light/balanced/aggressive), and
+  `CompressionStats` (ratio, token reduction, duplicate/cluster counts).
+  New `POST /context-compression/preview`, plus a Research Dashboard
+  "Context Compression Preview" panel showing the real human-readable
+  summary (e.g. "Compressed 14 chunks into 2 evidence groups...").
+- **4 new research benchmarks** (`ranking_quality`, `context_compression`,
+  `evidence_deduplication`, `entity_resolution`) — real numbers, not
+  fabricated: rrf_mrr=0.4583 vs ltr_mrr=0.5625; 14→10 evidence items
+  (0.7143 compression ratio); dedup precision=1.0/recall=0.8; entity
+  resolution precision=1.0/recall=1.0. See
+  [docs/benchmarks/README.md](docs/benchmarks/README.md#optimization-benchmarks-o1--o12).
+  Surfaced in a new Research Dashboard "Optimization Benchmarks" section.
+- No parallel infrastructure: the trained ranker registers into the same
+  `SqlModelRegistry` M6 built; every new benchmark runs through the same
+  `ExperimentManager` M5 built.
+
+### Documentation
+- New [docs/architecture/retrieval-optimization.md](docs/architecture/retrieval-optimization.md)
+  covering every optimization layer with architecture diagrams,
+  before/after benchmarks, honest tradeoff analysis, and roadmap extension
+  points.
+- `docs/api/README.md`, `docs/benchmarks/README.md`, `docs/roadmap/README.md`,
+  `docs/architecture/README.md`, `docs/architecture/retrieval.md` updated.
+
 ## [1.3.0] — M9: Industrial Graph Intelligence Platform
 
 Adds graph representation learning underneath the existing deterministic

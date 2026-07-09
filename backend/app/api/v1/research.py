@@ -32,6 +32,12 @@ from app.research.benchmarks.graph_runners import (
     LinkPredictionBenchmark,
     NodeClassificationBenchmark,
 )
+from app.research.benchmarks.optimization_runners import (
+    CompressionBenchmark,
+    DeduplicationBenchmark,
+    EntityResolutionBenchmark,
+    RankingQualityBenchmark,
+)
 from app.research.datasets.generator import SyntheticDatasetGenerator
 from app.research.experiments.manager import ExperimentManager
 from app.research.experiments.models import Experiment
@@ -68,6 +74,10 @@ _AUTO_RUN_BENCHMARKS = {
     "graph_embedding_gat",
     "graph_link_prediction",
     "graph_node_classification",
+    "ranking_quality",
+    "context_compression",
+    "evidence_deduplication",
+    "entity_resolution",
 }
 
 # M7 vision benchmarks generate their own small deterministic synthetic
@@ -95,6 +105,17 @@ _GRAPH_BENCHMARK_NAMES = {
     "graph_embedding_gat",
     "graph_link_prediction",
     "graph_node_classification",
+}
+
+# O1/O1.2 optimization benchmarks likewise generate their own small
+# deterministic synthetic input (see optimization_runners.py) — real
+# production components (HybridRetriever, ContextCompressionEngine,
+# EntityResolver), synthetic/hand-labeled data.
+_OPTIMIZATION_BENCHMARK_NAMES = {
+    "ranking_quality",
+    "context_compression",
+    "evidence_deduplication",
+    "entity_resolution",
 }
 
 
@@ -174,6 +195,15 @@ async def run_benchmark(benchmark_name: str, payload: BenchmarkRunRequest, reque
             report = await LinkPredictionBenchmark().run()
         else:
             report = await NodeClassificationBenchmark().run()
+    elif benchmark_name in _OPTIMIZATION_BENCHMARK_NAMES:
+        if benchmark_name == "ranking_quality":
+            report = await RankingQualityBenchmark().run()
+        elif benchmark_name == "context_compression":
+            report = await CompressionBenchmark().run()
+        elif benchmark_name == "evidence_deduplication":
+            report = await DeduplicationBenchmark().run()
+        else:
+            report = await EntityResolutionBenchmark().run()
     elif benchmark_name in _VISION_BENCHMARK_NAMES:
         if benchmark_name == "vision_ocr":
             report = await OCRBenchmark(request.app.state.vision_ocr_provider).run()

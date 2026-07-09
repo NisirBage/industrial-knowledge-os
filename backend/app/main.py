@@ -18,6 +18,7 @@ import torch  # noqa: F401
 import asyncio
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -68,6 +69,7 @@ from app.repositories.metadata_repository import MetadataRepository
 from app.repositories.vector_repository import build_vector_repository
 from app.research.experiments.manager import ExperimentManager
 from app.research.experiments.repository import SqlExperimentTracker
+from app.caching.lru_cache import LRUTTLCache
 from app.retrieval.bm25_index import Bm25Index
 from app.retrieval.graph_expansion import GraphExpansionStage
 from app.retrieval.hybrid import HybridRetriever
@@ -145,10 +147,43 @@ async def lifespan(app: FastAPI):
     knowledge_graph_builder = KnowledgeGraphBuilder(graph_repository)
 
     graph_expansion = GraphExpansionStage(entity_extraction_service, graph_repository)
-    retriever = HybridRetriever(embedder, vector_repository, bm25_index, graph_expansion, reranker)
+
+    # O1 Component 6: retrieval caches — explicit, per-instance objects (no
+    # module-level singletons), injected into HybridRetriever like every
+    # other collaborator. TTLs are short (query embeddings/expansions can go
+    # stale as new documents are ingested) and sizes are modest — this is a
+    # per-process cache, not a shared/distributed one.
+    retrieval_embedding_cache = LRUTTLCache(max_size=512, default_ttl=600)
+    retrieval_expansion_cache = LRUTTLCache(max_size=512, default_ttl=300)
+    retrieval_reranker_cache = LRUTTLCache(max_size=2048, default_ttl=300)
+    retrieval_result_cache = LRUTTLCache(max_size=256, default_ttl=120)
+
+    # O1 Component 4: two *separate* thread pools, not one shared pool.
+    # TaskGraphExecutor's node-level parallelism submits work that itself
+    # calls HybridRetriever.retrieve(), which (given an executor) submits
+    # further sub-tasks and blocks on their result — nesting that submission
+    # pattern onto a single shared pool risks deadlock if every worker ends
+    # up blocked waiting on sub-tasks queued behind them with no free worker
+    # left to run those sub-tasks. Two distinct pools have no such risk: a
+    # worker blocked in pool A is never one of pool B's own worker threads.
+    retrieval_fetch_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="retrieval-fetch")
+    task_graph_pool = ThreadPoolExecutor(max_workers=6, thread_name_prefix="task-graph")
+
+    retriever = HybridRetriever(
+        embedder,
+        vector_repository,
+        bm25_index,
+        graph_expansion,
+        reranker,
+        embedding_cache=retrieval_embedding_cache,
+        expansion_cache=retrieval_expansion_cache,
+        reranker_cache=retrieval_reranker_cache,
+        result_cache=retrieval_result_cache,
+        executor=retrieval_fetch_pool,
+    )
 
     task_graph_planner = TaskGraphPlanner()
-    task_graph_executor = TaskGraphExecutor(retriever, graph_repository)
+    task_graph_executor = TaskGraphExecutor(retriever, graph_repository, executor=task_graph_pool)
 
     evidence_fusion_engine = EvidenceFusionEngine()
     contradiction_detector = ContradictionDetector()
@@ -168,6 +203,7 @@ async def lifespan(app: FastAPI):
         report_agent=ReportAgent(narrator),
     )
 
+    app.state.embedder = embedder
     app.state.ingestion_service = IngestionService(
         embedder=embedder,
         vector_repository=vector_repository,
@@ -216,6 +252,14 @@ async def lifespan(app: FastAPI):
     app.state.relation_extractor = relation_extractor
     app.state.graph_repository = graph_repository
     app.state.retriever = retriever
+    app.state.retrieval_embedding_cache = retrieval_embedding_cache
+    app.state.retrieval_expansion_cache = retrieval_expansion_cache
+    app.state.retrieval_reranker_cache = retrieval_reranker_cache
+    app.state.retrieval_result_cache = retrieval_result_cache
+    app.state.retrieval_fetch_pool = retrieval_fetch_pool
+    app.state.task_graph_pool = task_graph_pool
+    app.state.active_ranker = None
+    app.state.merge_history = {}
     app.state.experiment_manager = experiment_manager
 
     # ML Laboratory (M6): also independent of the chat orchestrator. Trained
@@ -268,6 +312,8 @@ async def lifespan(app: FastAPI):
     yield
 
     graph_repository.close()
+    retrieval_fetch_pool.shutdown(wait=False)
+    task_graph_pool.shutdown(wait=False)
 
 
 def create_app() -> FastAPI:

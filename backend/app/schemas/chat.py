@@ -28,6 +28,14 @@ class EvidenceOut(BaseModel):
     source: str
     confidence: float
     agent: str
+    # O1 Component 5 (Retrieval Explainability): ltr_score mirrors
+    # Evidence.ltr_score (see app/retrieval/evidence.py). final_rank/
+    # explanation aren't Evidence fields — they depend on the evidence's
+    # position within its returned list, so callers compute and pass them
+    # in explicitly (see app/retrieval/explain.py).
+    ltr_score: float = 0.0
+    final_rank: int = 0
+    explanation: str = ""
 
 
 class ContradictionOut(BaseModel):

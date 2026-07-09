@@ -13,13 +13,25 @@ import {
 } from "recharts";
 import {
   AUTO_RUN_BENCHMARKS,
+  COMPRESSION_LEVELS,
+  OPTIMIZATION_BENCHMARKS,
   getBenchmarkHistory,
   getCalibration,
+  getEntityDuplicates,
   listExperiments,
+  mergeEntities,
+  previewContextCompression,
   runBenchmark,
   runEntityExtractionABTest,
 } from "../services/api";
-import type { ABTestResult, BenchmarkReport, CalibrationBucket, Experiment } from "../services/api";
+import type {
+  ABTestResult,
+  BenchmarkReport,
+  CalibrationBucket,
+  CompressionPreview,
+  DuplicateCandidate,
+  Experiment,
+} from "../services/api";
 
 export function ResearchPage() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
@@ -28,6 +40,12 @@ export function ResearchPage() {
   const [lastReport, setLastReport] = useState<BenchmarkReport | null>(null);
   const [abResult, setAbResult] = useState<ABTestResult | null>(null);
   const [calibration, setCalibration] = useState<CalibrationBucket[]>([]);
+  const [optimizationResults, setOptimizationResults] = useState<Record<string, BenchmarkReport>>({});
+  const [compressionQuery, setCompressionQuery] = useState("");
+  const [compressionLevel, setCompressionLevel] = useState<string>(COMPRESSION_LEVELS[1]);
+  const [compressionPreview, setCompressionPreview] = useState<CompressionPreview | null>(null);
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
+  const [mergedIds, setMergedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +85,19 @@ export function ResearchPage() {
     }
   }
 
+  async function handleRunOptimizationBenchmark(name: string) {
+    setLoading(`optimization:${name}`);
+    setError(null);
+    try {
+      const report = await runBenchmark(name);
+      setOptimizationResults((prev) => ({ ...prev, [name]: report }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Benchmark ${name} failed`);
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function handleRunABTest() {
     setLoading("abtest");
     setError(null);
@@ -74,6 +105,44 @@ export function ResearchPage() {
       setAbResult(await runEntityExtractionABTest());
     } catch (err) {
       setError(err instanceof Error ? err.message : "A/B test failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handlePreviewCompression() {
+    if (!compressionQuery.trim()) return;
+    setLoading("compression");
+    setError(null);
+    try {
+      setCompressionPreview(await previewContextCompression(compressionQuery, compressionLevel));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Compression preview failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleFindDuplicates() {
+    setLoading("duplicates");
+    setError(null);
+    try {
+      setDuplicates(await getEntityDuplicates());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Duplicate lookup failed");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleMerge(sourceId: string, targetId: string) {
+    setLoading(`merge:${sourceId}`);
+    setError(null);
+    try {
+      await mergeEntities(sourceId, targetId);
+      setMergedIds((prev) => new Set(prev).add(sourceId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Merge failed");
     } finally {
       setLoading(null);
     }
@@ -211,6 +280,130 @@ export function ResearchPage() {
           </ResponsiveContainer>
         ) : (
           <p className="text-sm text-slate-400">No predictions with recorded outcomes yet.</p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 p-4">
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Context Compression Preview</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={compressionQuery}
+            onChange={(e) => setCompressionQuery(e.target.value)}
+            placeholder="e.g. pump P-101 maintenance and failures"
+            className="min-w-[240px] flex-1 rounded border border-slate-300 px-3 py-1.5"
+          />
+          <select
+            value={compressionLevel}
+            onChange={(e) => setCompressionLevel(e.target.value)}
+            className="rounded border border-slate-300 px-3 py-1.5"
+          >
+            {COMPRESSION_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handlePreviewCompression}
+            disabled={loading === "compression"}
+            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {loading === "compression" ? "Running..." : "Preview Compression"}
+          </button>
+        </div>
+        {compressionPreview && (
+          <div className="mt-3 text-sm text-slate-700">
+            <p className="font-medium">{compressionPreview.stats.summary}</p>
+            <p className="mt-1 text-slate-500">
+              compression_ratio={compressionPreview.stats.compression_ratio}, token_reduction=
+              {(compressionPreview.stats.token_reduction_ratio * 100).toFixed(1)}%
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Entity Resolution — Duplicate Candidates</h2>
+          <button
+            onClick={handleFindDuplicates}
+            disabled={loading === "duplicates"}
+            className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {loading === "duplicates" ? "Running..." : "Find Duplicates"}
+          </button>
+        </div>
+        {duplicates.length > 0 && (
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="pb-1">Source</th>
+                <th className="pb-1">Target</th>
+                <th className="pb-1">Confidence</th>
+                <th className="pb-1">Reason</th>
+                <th className="pb-1"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {duplicates.map((d) => (
+                <tr key={`${d.source_id}-${d.target_id}`} className="border-t border-slate-100">
+                  <td className="py-1">{d.source_name}</td>
+                  <td className="py-1">{d.target_name}</td>
+                  <td className="py-1">{d.confidence}</td>
+                  <td className="py-1 text-slate-500">{d.merge_reason}</td>
+                  <td className="py-1">
+                    {mergedIds.has(d.source_id) ? (
+                      <span className="text-emerald-600">Merged</span>
+                    ) : (
+                      <button
+                        onClick={() => handleMerge(d.source_id, d.target_id)}
+                        disabled={loading === `merge:${d.source_id}`}
+                        className="rounded border border-slate-300 px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {loading === `merge:${d.source_id}` ? "Merging..." : "Merge"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 p-4">
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Optimization Benchmarks (Learning-to-Rank, Compression, Entity Resolution)</h2>
+        <div className="flex flex-wrap gap-2">
+          {OPTIMIZATION_BENCHMARKS.map((name) => (
+            <button
+              key={name}
+              onClick={() => handleRunOptimizationBenchmark(name)}
+              disabled={loading === `optimization:${name}`}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {loading === `optimization:${name}` ? "Running..." : name}
+            </button>
+          ))}
+        </div>
+        {Object.keys(optimizationResults).length > 0 && (
+          <table className="mt-3 w-full text-left text-sm">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="pb-1">Benchmark</th>
+                <th className="pb-1">Metrics</th>
+                <th className="pb-1">Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(optimizationResults).map(([name, report]) => (
+                <tr key={name} className="border-t border-slate-100">
+                  <td className="py-1 font-medium">{name}</td>
+                  <td className="py-1 text-slate-600">{report.metrics.map((m) => `${m.name}=${m.value}`).join(", ")}</td>
+                  <td className="py-1">{report.duration_seconds.toFixed(3)}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 

@@ -124,6 +124,12 @@ export function ChatPage() {
                         ? "knowledge graph relationship"
                         : `document ${citation.document_id} — page ${citation.page_number}`}
                       {evidence && <p className="mt-1 italic text-slate-500">{evidence.text.slice(0, 200)}...</p>}
+                      {evidence?.explanation && (
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-xs text-indigo-600 hover:underline">Why was this retrieved?</summary>
+                          <p className="mt-1 rounded bg-slate-50 p-2 text-xs text-slate-600">{evidence.explanation}</p>
+                        </details>
+                      )}
                     </li>
                   );
                 })}

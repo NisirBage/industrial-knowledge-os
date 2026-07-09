@@ -30,3 +30,4 @@ networkx==3.4.2
 gensim==4.4.0
 python-louvain==0.16
 psutil==7.0.0
+lightgbm==4.6.0

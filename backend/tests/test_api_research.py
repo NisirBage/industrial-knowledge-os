@@ -45,6 +45,26 @@ def test_run_each_graph_benchmark(client):
         assert len(body["metrics"]) > 0
 
 
+def test_run_each_optimization_benchmark(client):
+    optimization_benchmarks = ["ranking_quality", "context_compression", "evidence_deduplication", "entity_resolution"]
+    for benchmark_name in optimization_benchmarks:
+        response = client.post(f"/api/v1/research/benchmarks/{benchmark_name}/run", json={"sample_size": 5, "seed": 1})
+        assert response.status_code == 200, f"{benchmark_name} failed: {response.text}"
+        body = response.json()
+        assert body["benchmark_name"] == benchmark_name
+        assert isinstance(body["metrics"], list)
+        assert len(body["metrics"]) > 0
+
+
+def test_optimization_benchmark_run_appears_in_history(client):
+    client.post("/api/v1/research/benchmarks/context_compression/run", json={"sample_size": 5, "seed": 4})
+
+    response = client.get("/api/v1/research/benchmarks/context_compression/history")
+
+    assert response.status_code == 200
+    assert all(e["name"] == "benchmark:context_compression" for e in response.json())
+
+
 def test_graph_benchmark_run_appears_in_history(client):
     client.post("/api/v1/research/benchmarks/graph_link_prediction/run", json={"sample_size": 5, "seed": 4})
 

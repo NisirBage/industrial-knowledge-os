@@ -22,6 +22,7 @@ from app.schemas.vision import (
     VisionAnalysisOut,
     VisionDocumentOut,
 )
+from app.retrieval.explain import explain_evidence
 from app.schemas.chat import EvidenceOut
 
 router = APIRouter(prefix="/vision", tags=["vision"])
@@ -185,7 +186,10 @@ async def multimodal_query(payload: MultimodalQueryRequest, request: Request) ->
                 source=e.source,
                 confidence=e.confidence,
                 agent=e.agent,
+                ltr_score=e.ltr_score,
+                final_rank=rank,
+                explanation=explain_evidence(e, rank),
             )
-            for e in evidence
+            for rank, e in enumerate(evidence, start=1)
         ]
     )

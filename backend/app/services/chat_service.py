@@ -6,6 +6,7 @@ into the API response schema."""
 import dataclasses
 import time
 
+from app.retrieval.explain import explain_evidence
 from app.schemas.chat import ChatResponse, CitationOut, ContradictionOut, EvidenceOut, RecommendationOut
 
 
@@ -28,7 +29,10 @@ class ChatService:
             summary=final_state.get("answer", ""),
             confidence=final_state.get("confidence", 0.0),
             citations=[CitationOut(**c) for c in final_state.get("citations", [])],
-            evidence=[EvidenceOut(**dataclasses.asdict(e)) for e in final_state.get("evidence", [])],
+            evidence=[
+                EvidenceOut(**dataclasses.asdict(e), final_rank=rank, explanation=explain_evidence(e, rank))
+                for rank, e in enumerate(final_state.get("evidence", []), start=1)
+            ],
             recommended_actions=final_state.get("recommended_actions", []),
             reasoning_summary=reasoning_graph.summary if reasoning_graph else "",
             contradictions=[ContradictionOut(**dataclasses.asdict(c)) for c in final_state.get("contradictions", [])],

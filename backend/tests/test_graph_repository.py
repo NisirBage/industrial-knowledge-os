@@ -142,3 +142,39 @@ def test_subgraph_includes_seed_and_one_hop_neighbors():
     assert valve_id in node_ids
     assert unrelated_id not in node_ids
     assert len(result["edges"]) == 1
+
+
+def test_delete_node_removes_the_node_and_its_touching_edges():
+    repo = InMemoryGraphRepository()
+    pump_id = repo.create_node(EntityLabel.PUMP, "P-101")
+    valve_id = repo.create_node(EntityLabel.VALVE, "V-2201A")
+    motor_id = repo.create_node(EntityLabel.MOTOR, "M-1")
+    repo.create_relation(pump_id, valve_id, RelationType.CONNECTED_TO)
+    repo.create_relation(motor_id, pump_id, RelationType.CONNECTED_TO)
+
+    repo.delete_node(pump_id)
+
+    node_ids = {n["id"] for n in repo.all_nodes()}
+    assert pump_id not in node_ids
+    assert valve_id in node_ids and motor_id in node_ids
+    remaining_edges = repo.all_edges()
+    assert all(e["source"] != pump_id and e["target"] != pump_id for e in remaining_edges)
+
+
+def test_delete_node_on_an_unknown_id_is_a_safe_no_op():
+    repo = InMemoryGraphRepository()
+
+    repo.delete_node("does-not-exist")  # must not raise
+
+    assert repo.node_count() == 0
+
+
+def test_delete_node_cleans_up_neighbor_lookups():
+    repo = InMemoryGraphRepository()
+    pump_id = repo.create_node(EntityLabel.PUMP, "P-101")
+    valve_id = repo.create_node(EntityLabel.VALVE, "V-2201A")
+    repo.create_relation(pump_id, valve_id, RelationType.CONNECTED_TO)
+
+    repo.delete_node(pump_id)
+
+    assert repo.find_neighbors(valve_id) == []

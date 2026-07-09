@@ -1,10 +1,10 @@
 # IKIOS — Industrial Knowledge Intelligence OS
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-659%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-825%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.3.0-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 
@@ -43,6 +43,7 @@ disagree, and predicts what's likely to happen next.
 | ML Laboratory | Real scikit-learn training, model registry, explainability, drift monitoring |
 | Multimodal Vision | OCR, diagram parsing, equipment/gauge/defect detection — images become graph evidence too |
 | Graph Intelligence | Node2Vec/DeepWalk/GCN/GraphSAGE/GAT embeddings, link prediction, node classification, risk propagation — another reasoning source, not a replacement for symbolic reasoning |
+| Retrieval Optimization | Learning-to-rank, parallel fetch, multi-level caching, entity resolution, context compression, retrieval explainability — all optional layers behind the existing Hybrid Retrieval interface |
 
 Every claim in a Chat answer traces back to a cited document chunk.
 Contradictions across sources are surfaced explicitly, never silently

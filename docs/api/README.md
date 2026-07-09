@@ -163,6 +163,50 @@ New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`:
 `graph_embedding_gcn`, `graph_embedding_graphsage`, `graph_embedding_gat`,
 `graph_link_prediction`, `graph_node_classification`.
 
+## Ranking (O1)
+
+Prefix: `/ranking`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/ranking/train` | Builds labeled `(query, relevant_document_ids)` pairs directly from the live Knowledge Graph, trains a LightGBM LambdaMART ranker, registers it (`task_type="retrieval_ranking"`), and hot-swaps it into the live `HybridRetriever`. Returns feature importance. `400` if fewer than 2 labeled queries produce candidates. |
+| GET | `/ranking/status` | Whether a trained ranker is currently active, and its registry metadata if so |
+
+## Entity Resolution (O1.2)
+
+Prefix: `/entity-resolution`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/entity-resolution/duplicates?threshold=0.82` | Candidate duplicate node pairs from the live Knowledge Graph, each with per-signal scores and a merge reason |
+| POST | `/entity-resolution/merge` | `{"source_id": "...", "target_id": "..."}` → merges the source node into the target (edges redirected, properties merged, provenance recorded), returns the `MergeRecord` |
+| POST | `/entity-resolution/rollback` | `{"merge_id": "..."}` → recreates the source node and its original edges from the recorded `MergeRecord` |
+
+Merge history lives in `app.state.merge_history` (process-lifetime, not a
+persisted audit table — see
+[docs/architecture/retrieval-optimization.md](../architecture/retrieval-optimization.md#o12-component-12--entity-resolution--canonical-knowledge-graph)).
+
+## Context Compression (O1.2)
+
+Prefix: `/context-compression`
+
+| Method | Path | Description |
+| --- | --- | --- |
+| POST | `/context-compression/preview` | `{"query": "...", "level": "balanced"}` → retrieves real evidence via the live `HybridRetriever`, then compresses it (dedup → timeline merge → semantic clustering), returning the compressed bundle and `CompressionStats` (ratio, token reduction, duplicate/cluster counts). `level` is one of `light`/`balanced`/`aggressive`. |
+
+This is a preview/benchmarking surface — the live Chat pipeline does not
+call it; compression stays optional per the O1.2 architectural constraint.
+
+## Observability additions (O1)
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/observability/cache-stats` | Real hit/miss/eviction/hit-ratio counters for each of the four `LRUTTLCache` instances (`retrieval_embedding_cache`, `retrieval_expansion_cache`, `retrieval_reranker_cache`, `retrieval_result_cache`) |
+
+New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`
+(see the Research section above): `ranking_quality`, `context_compression`,
+`evidence_deduplication`, `entity_resolution`.
+
 ## Error handling
 
 Every 4xx response body is `{"detail": "..."}` (FastAPI's default shape),

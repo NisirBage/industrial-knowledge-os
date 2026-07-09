@@ -109,6 +109,47 @@ baseline currently beats the graph-embedding regressor — the same honest
 failure-risk comparison. Small-sample synthetic benchmarks can genuinely go
 either way; this is not tuned or hidden.
 
+## Optimization benchmarks (O1 / O1.2)
+
+Run via `app/research/benchmarks/optimization_runners.py` against small,
+self-contained synthetic inputs — each runner builds its own fake retriever
+or hand-labeled pairs so it's runnable via `POST /research/benchmarks/{name}/run`
+without live ingested data (the same "self-contained synthetic benchmark"
+pattern M9's `graph_runners.py` established). See
+[docs/architecture/retrieval-optimization.md](../architecture/retrieval-optimization.md)
+for what each optimization layer does; these numbers are what actually ran.
+
+| Benchmark | Sample size | Key metrics |
+|---|---|---|
+| ranking_quality | 12 synthetic labeled queries | rrf_mrr=0.4583, ltr_mrr=0.5625, rrf_recall_at_5=1.0, ltr_recall_at_5=1.0 |
+| context_compression | 14 synthetic evidence items (4 exact duplicates injected) | original_count=14, compressed_count=10, compression_ratio=0.7143, token_reduction≈28.6% |
+| evidence_deduplication | 10 hand-labeled pairs (5 true duplicates, 5 distinct) | precision=1.0, recall=0.8, f1=0.8889 |
+| entity_resolution | 6 hand-labeled (candidate, known-entity, should_merge) triples | precision=1.0, recall=1.0, f1=1.0 |
+
+**Honest reading of `ranking_quality`**: the LTR ranker beating RRF here
+(0.5625 vs 0.4583 MRR) confirms the training→inference pipeline works
+end-to-end, not that LightGBM LambdaMART beats RRF on realistic queries —
+the synthetic BM25 signal used to build labels is deliberately strong (5x
+weight on relevant candidates), which is an easier setup for a
+feature-based ranker than real, noisier production queries. A genuine
+RRF-vs-LTR comparison needs real query logs (tracked in the roadmap).
+
+**Honest reading of `evidence_deduplication`**: recall of 0.8 (not 1.0)
+means one of the five true-duplicate pairs in the hand-labeled set was not
+flagged by `near_duplicate_score()` at the benchmark's threshold — reported
+as-is rather than tuning the threshold to the test set.
+
+**Parallel executor and caching are deliberately excluded from this table**:
+their benefit is wall-clock latency reduction under concurrent I/O, which a
+synthetic in-process benchmark can't measure honestly (no real network/DB
+latency to parallelize against). Their proof lives in
+`tests/test_hybrid_retrieval_parallel.py`,
+`tests/test_task_graph_executor_parallel.py`, and
+`tests/test_hybrid_retrieval_caching.py` — real `time.sleep()`-based fakes
+and call-counting assertions, not benchmark-suite metrics. See
+[docs/architecture/retrieval-optimization.md](../architecture/retrieval-optimization.md#component-4--parallel-retrieval-executor)
+for what those tests actually prove.
+
 ## Notes on methodology and limitations
 
 - Documents are synthetically generated (seeded, deterministic) — see

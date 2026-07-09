@@ -25,3 +25,10 @@ class Evidence:
     source: str = "fusion"
     confidence: float = 0.0
     agent: str = ""
+    # O1 Component 1: the score actually used to order final results. Equal
+    # to reranker_score when no Ranker is injected into HybridRetriever
+    # (the default — exact prior behavior), or a Ranker's own output
+    # (Reciprocal Rank Fusion / LightGBM LambdaMART) otherwise. Kept
+    # separate from `confidence` (always sigmoid(reranker_score)) since a
+    # trained ranker's score has no fixed scale to sigmoid meaningfully.
+    ltr_score: float = 0.0

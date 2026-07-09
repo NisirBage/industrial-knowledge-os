@@ -570,6 +570,9 @@ describe("VisionPage — multimodal query", () => {
         source: "vision:Defect",
         confidence: 0.7,
         agent: "",
+        ltr_score: 0,
+        final_rank: 1,
+        explanation: "",
       },
     ];
     multimodalQuery.mockResolvedValue({ evidence });
@@ -599,6 +602,9 @@ describe("VisionPage — multimodal query", () => {
         source: "fusion",
         confidence: 0.5,
         agent: "",
+        ltr_score: 0,
+        final_rank: 1,
+        explanation: "",
       },
     ];
     multimodalQuery.mockResolvedValue({ evidence });

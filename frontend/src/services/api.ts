@@ -23,6 +23,9 @@ export interface Evidence {
   source: string;
   confidence: number;
   agent: string;
+  ltr_score: number;
+  final_rank: number;
+  explanation: string;
 }
 
 export interface Contradiction {
@@ -162,6 +165,8 @@ export interface CalibrationBucket {
 }
 
 export const AUTO_RUN_BENCHMARKS = ["entity_extraction", "relation_extraction", "knowledge_graph"] as const;
+
+export const OPTIMIZATION_BENCHMARKS = ["ranking_quality", "context_compression", "evidence_deduplication", "entity_resolution"] as const;
 
 export async function listExperiments(): Promise<Experiment[]> {
   const response = await fetch(`${API_BASE_URL}/research/experiments`);
@@ -594,4 +599,94 @@ export async function simulatePropagation(
     body: JSON.stringify({ equipment_name: equipmentName, propagation_type: propagationType, max_depth: maxDepth }),
   });
   return handleResponse<PropagationResult>(response);
+}
+
+// --- Entity Resolution (O1.2) ---
+
+export interface DuplicateCandidate {
+  source_id: string;
+  source_name: string;
+  target_id: string;
+  target_name: string;
+  confidence: number;
+  merge_reason: string;
+}
+
+export interface MergeResult {
+  merge_id: string;
+  source_id: string;
+  target_id: string;
+  reason: string;
+  timestamp: string;
+}
+
+export interface RollbackResult {
+  restored_node_id: string;
+}
+
+export async function getEntityDuplicates(threshold = 0.82): Promise<DuplicateCandidate[]> {
+  const response = await fetch(`${API_BASE_URL}/entity-resolution/duplicates?threshold=${threshold}`);
+  return handleResponse<DuplicateCandidate[]>(response);
+}
+
+export async function mergeEntities(sourceId: string, targetId: string): Promise<MergeResult> {
+  const response = await fetch(`${API_BASE_URL}/entity-resolution/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_id: sourceId, target_id: targetId }),
+  });
+  return handleResponse<MergeResult>(response);
+}
+
+export async function rollbackMerge(mergeId: string): Promise<RollbackResult> {
+  const response = await fetch(`${API_BASE_URL}/entity-resolution/rollback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ merge_id: mergeId }),
+  });
+  return handleResponse<RollbackResult>(response);
+}
+
+// --- Context Compression (O1.2) ---
+
+export interface EvidenceCluster {
+  cluster_id: string;
+  cluster_type: string;
+  representative: Evidence;
+  member_count: number;
+  confidence: number;
+}
+
+export interface CompressionStats {
+  original_count: number;
+  compressed_count: number;
+  exact_duplicate_count: number;
+  near_duplicate_count: number;
+  cluster_count: number;
+  compression_ratio: number;
+  original_tokens_estimate: number;
+  compressed_tokens_estimate: number;
+  token_reduction_ratio: number;
+  summary: string;
+}
+
+export interface CompressionPreview {
+  clusters: EvidenceCluster[];
+  compressed_evidence: Evidence[];
+  stats: CompressionStats;
+}
+
+export const COMPRESSION_LEVELS = ["light", "balanced", "aggressive"] as const;
+
+export async function previewContextCompression(
+  query: string,
+  level: string = "balanced",
+  topK = 20,
+): Promise<CompressionPreview> {
+  const response = await fetch(`${API_BASE_URL}/context-compression/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, top_k: topK, level }),
+  });
+  return handleResponse<CompressionPreview>(response);
 }

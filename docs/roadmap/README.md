@@ -100,6 +100,27 @@ follows is real future work, not vague aspiration.
   Documents, or Chat workspaces (each workspace is independently navigable
   today, not yet linked by shared selection state)
 
+## Retrieval & Knowledge Optimization (O1 / O1.2)
+
+- **`NeuralRanker` real implementation** — ColBERT/SPLADE/RankT5/MonoT5
+  behind the existing `Ranker` Protocol (currently a documented stub that
+  raises `NotImplementedError`)
+- **Real graph-embedding similarity as an LTR feature** — needs a
+  chunk-to-graph-node resolver; M9's embeddings are keyed by graph node id,
+  `Evidence` by chunk id, and no mapping between the two exists yet
+- **Per-chunk timestamps** — would enable real (not adjacency-proxy)
+  timeline compression and a genuine "temporal recency" ranking feature;
+  `app/documents/chunking.py` would need a date field
+- **Persisted merge-history audit table** — `app.state.merge_history` is
+  process-lifetime only today, not durable across restarts
+- **Real production query logs** for a genuine RRF-vs-LTR ranking-quality
+  comparison — the current `ranking_quality` benchmark uses a deliberately
+  strong synthetic BM25 signal (see
+  [docs/benchmarks/README.md](../benchmarks/README.md#optimization-benchmarks-o1--o12))
+- **Real tokenizer for compression stats** — `_estimate_tokens()` is a
+  word-count proxy today, consistent enough for before/after ratios but not
+  exact subword counts
+
 ## Platform
 
 - Authentication/authorization (none exists today — single-tenant, trusted

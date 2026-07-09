@@ -33,3 +33,20 @@ def test_chat_rejects_get(client):
     response = client.get("/api/v1/chat")
 
     assert response.status_code == 405
+
+
+def test_chat_evidence_includes_explainability_fields(client):
+    client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("explain_seed.txt", b"Pump P-9501 failed due to Valve V-9502 blockage.", "text/plain")},
+    )
+
+    response = client.post("/api/v1/chat", json={"query": "Why did P-9501 fail?"})
+
+    assert response.status_code == 200
+    evidence = response.json()["evidence"]
+    assert len(evidence) > 0
+    for i, item in enumerate(evidence, start=1):
+        assert "ltr_score" in item
+        assert item["final_rank"] == i
+        assert item["explanation"].startswith(f"Rank #{i}.")

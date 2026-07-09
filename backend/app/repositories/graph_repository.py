@@ -75,6 +75,7 @@ class GraphRepositoryProtocol(Protocol):
     def get_node_properties(self, node_id: str) -> dict: ...
     def all_nodes(self) -> list[dict]: ...
     def all_edges(self) -> list[dict]: ...
+    def delete_node(self, node_id: str) -> None: ...
 
 
 def _validate_relation_type(relation_type: RelationType) -> str:
@@ -312,6 +313,14 @@ class GraphRepository:
             )
             return [dict(record) for record in result]
 
+    def delete_node(self, node_id: str) -> None:
+        """Real deletion, not a soft/logical delete — `DETACH DELETE` drops
+        the node's own relationships too, so callers (e.g. `GraphMerger`)
+        must redirect any edges they want preserved onto another node
+        *before* calling this."""
+        with self._driver.session() as session:
+            session.run("MATCH (e:Entity {id: $id}) DETACH DELETE e", id=node_id)
+
 
 class InMemoryGraphRepository:
     """No-persistence fallback used when Neo4j is unreachable. Mirrors
@@ -541,6 +550,17 @@ class InMemoryGraphRepository:
             }
             for edge in self._edges.values()
         ]
+
+    def delete_node(self, node_id: str) -> None:
+        self._nodes.pop(node_id, None)
+        for key in [k for k in self._edges if k[0] == node_id or k[1] == node_id]:
+            del self._edges[key]
+        self._outgoing.pop(node_id, None)
+        self._incoming.pop(node_id, None)
+        for neighbors in self._outgoing.values():
+            neighbors.discard(node_id)
+        for neighbors in self._incoming.values():
+            neighbors.discard(node_id)
 
     @staticmethod
     def _public_node(node: dict) -> dict:

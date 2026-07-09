@@ -75,3 +75,18 @@ into an opaque single score.
 richer per-chunk metadata (document type, department, date), it plugs in here
 to filter/boost candidates by query intent before fusion, without touching
 anything else in the pipeline.
+
+## O1 optimization layers
+
+`HybridRetriever` now accepts four more optional collaborators —
+`embedding_cache`/`expansion_cache`/`reranker_cache`/`result_cache`, an
+`executor`, and a `ranker` — every one defaulting to `None`/off, so the
+pipeline above is the exact behavior when none are injected. See
+[retrieval-optimization.md](retrieval-optimization.md) for the full O1/O1.2
+optimization-layer writeup (caching, parallel fetch, learning-to-rank,
+entity resolution, context compression) with real before/after benchmarks.
+`Evidence` also gained `ltr_score` (the score actually used for final
+ordering — equals `reranker_score` when no ranker is injected) — every
+returned evidence item's `explanation` field
+(`app/retrieval/explain.py`) is a real, computed "why was this retrieved"
+string built from these same numbers.
