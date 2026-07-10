@@ -5,11 +5,22 @@ raw evidence dump — so the LLM narrates conclusions the reasoning stages
 already reached rather than re-deriving them itself. This is the concrete
 realization of "the LLM becomes the final narrator, not the reasoning
 engine."
+
+O2 (Faithful Cognitive Reasoning): when a verified `ClaimGraph` is supplied,
+"Key facts"/"Identified risks" are sourced from its SUPPORTED/PARTIALLY_SUPPORTED
+FACT/RISK claims instead of raw Reasoning Graph node descriptions — the
+concrete realization of "the LLM generates from verified claims only, never
+directly from retrieved chunks." `claim_graph` is optional and defaults to
+`None` so every pre-O2 caller (and its tests) keeps the exact prior
+behavior unchanged.
 """
 
+from app.claims.models import ClaimGraph, ClaimType, ClaimVerificationStatus
 from app.reasoning.graph_models import ReasoningGraph, ReasoningNodeType
 from app.recommendation.models import RecommendationBundle
 from app.services.llm_provider import LLMProvider
+
+_NARRATABLE_STATUSES = {ClaimVerificationStatus.SUPPORTED, ClaimVerificationStatus.PARTIALLY_SUPPORTED}
 
 _SYSTEM_PROMPT = (
     "You are the narration layer of an industrial knowledge intelligence system. "
@@ -31,9 +42,23 @@ class LLMNarrator:
     def __init__(self, llm_provider: LLMProvider):
         self._llm_provider = llm_provider
 
-    def narrate(self, query: str, reasoning_graph: ReasoningGraph, recommendation_bundle: RecommendationBundle) -> str:
-        key_facts = reasoning_graph.nodes_of_type(ReasoningNodeType.FACT)[:5]
-        risks = reasoning_graph.nodes_of_type(ReasoningNodeType.RISK)
+    def narrate(
+        self,
+        query: str,
+        reasoning_graph: ReasoningGraph,
+        recommendation_bundle: RecommendationBundle,
+        claim_graph: ClaimGraph | None = None,
+    ) -> str:
+        if claim_graph is not None:
+            key_fact_texts = [
+                c.text for c in claim_graph.claims_of_type(ClaimType.FACT) if c.verification_status in _NARRATABLE_STATUSES
+            ][:5]
+            risk_texts = [
+                c.text for c in claim_graph.claims_of_type(ClaimType.RISK) if c.verification_status in _NARRATABLE_STATUSES
+            ]
+        else:
+            key_fact_texts = [fact.description for fact in reasoning_graph.nodes_of_type(ReasoningNodeType.FACT)[:5]]
+            risk_texts = [risk.description for risk in reasoning_graph.nodes_of_type(ReasoningNodeType.RISK)]
 
         # Everything below this point is derived from ingested document text
         # (facts, risks, recommendation justifications) — untrusted content
@@ -42,13 +67,13 @@ class LLMNarrator:
         # <retrieved_evidence> framing.
         evidence_lines = [f"Reasoning summary: {reasoning_graph.summary}"]
 
-        if key_facts:
+        if key_fact_texts:
             evidence_lines.append("\nKey facts:")
-            evidence_lines += [f"- {fact.description}" for fact in key_facts]
+            evidence_lines += [f"- {text}" for text in key_fact_texts]
 
-        if risks:
+        if risk_texts:
             evidence_lines.append("\nIdentified risks:")
-            evidence_lines += [f"- {risk.description}" for risk in risks]
+            evidence_lines += [f"- {text}" for text in risk_texts]
 
         if recommendation_bundle.recommendations:
             evidence_lines.append("\nRecommendations:")

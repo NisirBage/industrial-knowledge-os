@@ -105,6 +105,44 @@ describe("ResearchPage — Optimization Benchmarks section", () => {
   });
 });
 
+describe("ResearchPage — Reasoning Benchmarks section", () => {
+  it("renders a button for every REASONING_BENCHMARKS entry", async () => {
+    render(<ResearchPage />);
+
+    for (const name of api.REASONING_BENCHMARKS) {
+      expect(await screen.findByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("runs a reasoning benchmark and displays its metrics and duration", async () => {
+    const user = userEvent.setup();
+    runBenchmark.mockResolvedValue({
+      benchmark_name: "faithfulness_quality",
+      metrics: [{ name: "correctly_ranked_faithful_above_hallucinated", value: 1.0 }],
+      duration_seconds: 0.02,
+      dataset_name: "synthetic_faithful_vs_hallucinated",
+      sample_size: 2,
+      timestamp: "2026-01-01T00:00:00Z",
+    });
+    render(<ResearchPage />);
+
+    await user.click(await screen.findByRole("button", { name: "faithfulness_quality" }));
+
+    expect(await screen.findByText(/correctly_ranked_faithful_above_hallucinated=1/)).toBeInTheDocument();
+    expect(screen.getByText("0.020s")).toBeInTheDocument();
+  });
+
+  it("shows an error message when a reasoning benchmark run fails", async () => {
+    const user = userEvent.setup();
+    runBenchmark.mockRejectedValue(new Error("Request failed (500): boom"));
+    render(<ResearchPage />);
+
+    await user.click(await screen.findByRole("button", { name: "nli_quality" }));
+
+    expect(await screen.findByText(/Request failed \(500\)/)).toBeInTheDocument();
+  });
+});
+
 describe("ResearchPage — Context Compression Preview", () => {
   it("previews compression for a query and shows the summary", async () => {
     const user = userEvent.setup();

@@ -6,6 +6,134 @@ All notable changes to IKIOS are documented here. Format loosely follows
 development milestone rather than individual commits, since each milestone
 is the unit of "no regressions, tests pass" verification this project uses.
 
+## [1.6.0] — O3–O3.4.1: Scientific Evaluation & Unified Execution Trace / Failure Intelligence
+
+IKIOS gains a scientific-evaluation layer (ablation studies, calibration,
+self-reflection, failure taxonomy) followed by a unified `ExecutionTrace`
+architecture that every diagnostic subsystem built on top of it consumes
+exclusively — Failure Pattern Mining, Root Cause Graphs, Counterfactual
+Simulation, and Optimization Recommendations never re-derive telemetry
+independently, and none of them modify production settings or retrain
+models automatically. A new Executions + Failure Intelligence frontend
+workspace exposes all of it interactively. Verified by the entire
+pre-existing test suite passing unmodified alongside 260+ new tests (1072
+backend + 145 frontend = 1217 total, up from 951/121 at v1.5.0).
+
+### Added
+- **`app/execution/`** — `ExecutionTrace`/`ExecutionEvent` (the canonical
+  per-chat-turn record: events, per-subsystem trace slots, latencies,
+  memory, confidence, timestamps); `ExecutionRecorder` (builds
+  Started/Finished events with real `psutil` memory deltas); pipeline
+  instrumentation additive to the existing `latencies` mechanism in
+  `app/orchestrator/graph.py`; `SqlExecutionRepository`; `timeline.py`
+  (span/DAG/confidence-evolution reconstruction); `state_adapter.py`
+  (`AgentState` → per-subsystem trace dicts).
+- **`app/failure_intelligence/`** — `FailurePatternMiner` (aggregates
+  `ErrorAnalyzer.analyze_trace()` results across a batch of traces, plus
+  cross-stage confidence-collapse and repeated-sequence patterns);
+  `SqlFailurePatternRepository`; `clustering.py` (rule-based/embedding-
+  based/graph-based strategies); `root_cause_graph.py` (typed graph with
+  traversal/dominant-cause/dependency-depth/critical-path/export);
+  `attribution.py` (evidence-only cause attribution, never fabricated);
+  `counterfactual.py` (8 togglable subsystems, replayed via the same
+  `analyze_trace()` consumer); `optimization.py` (deterministic,
+  evidence-cited, advisory-only recommendations).
+- **Migration adapters**: `ErrorAnalyzer.analyze_trace()` and
+  `SelfReflectionEngine.reflect_trace()` consume `ExecutionTrace` directly
+  alongside their original object-based signatures.
+- **API**: `/api/v1/executions/*` (list/get/timeline/statistics) and
+  `/api/v1/failure-intelligence/*` (mine/list patterns, attribution,
+  clusters, root-cause-graph, counterfactual simulation, optimization
+  recommendations); 5 new research benchmarks (`failure_pattern_mining_quality`,
+  `root_cause_attribution_accuracy`, `counterfactual_consistency`,
+  `optimization_recommendation_groundedness`, `failure_intelligence_latency`)
+  plus the previously-unwired `execution_trace_overhead` benchmark, all
+  wired into the existing benchmark dispatch/regression-detection
+  machinery.
+- **Frontend**: `ExecutionsPage` (Execution Explorer with search/sort/
+  pagination/filtering, Pipeline Waterfall, confidence-evolution chart,
+  Execution DAG) and `FailureIntelligencePage` (Dashboard Metrics,
+  Failure Pattern Explorer, Root Cause Graph viewer, Counterfactual
+  Explorer, Optimization Recommendation viewer); `CytoscapeGraph` — the
+  cytoscape rendering lifecycle extracted from `GraphIntelligencePage`
+  into a shared component reused by all three graph visualizations.
+- **Also completed in this arc**: Comprehensive Ablation Framework,
+  Calibration & Uncertainty Suite, Self-Reflection Engine, and an expanded
+  15-category Failure Taxonomy with severity/frequency (O3/O3.2).
+
+## [1.5.0] — O2: Faithful Cognitive Reasoning Framework
+
+A deterministic Cognitive Verification Layer now sits between Reasoning and
+the Narrator: the LLM stops deciding what's true and becomes a surface-
+realization engine only, narrating from a Structured Claim Graph that has
+already been extracted, verified against the Knowledge Graph, confidence-
+propagated, and (for recommendations) threshold-checked. Every capability
+is an additive pipeline stage and additive `ChatResponse` field — the
+Planner, Industrial Reasoning Graph, Recommendation Engine, and Prediction
+Engine are untouched. Verified by the entire pre-existing test suite
+passing unmodified alongside 210+ new tests (830 backend + 121 frontend =
+951 total, up from 825/113 at v1.4.0).
+
+### Added
+- **`app/claims/`** — Structured Claim Graph (`Claim`/`ClaimRelation`/
+  `ClaimGraph`, 7 claim types); `ClaimExtractionEngine` (reuses the exact
+  `EntityExtractionService`/`RelationExtractor` ingestion already uses —
+  no parallel NLP stack); `ClaimVerificationEngine` (checks each claim
+  against the Knowledge Graph and corroborating evidence/timeline,
+  assigning SUPPORTED/PARTIALLY_SUPPORTED/CONTRADICTED/
+  INSUFFICIENT_EVIDENCE/UNKNOWN — unsupported claims are dropped before
+  the Narrator ever sees them); `GraphDecayConfidencePropagator` (decayed
+  BFS over claim relations, explicit formula, no averaging;
+  `BayesianConfidencePropagator` a documented `NotImplementedError` stub);
+  `EvidenceAttributionBuilder` (per-answer-sentence supporting claims/
+  evidence/graph nodes/edges/confidence/reasoning path).
+- **`app/nli/`** — real NLI (`TransformerNLIDetector` wrapping a
+  `sentence-transformers` DeBERTa-v3 MNLI cross-encoder, same
+  loading/fallback idiom as the existing reranker/GLiNER), `RuleBasedNLIDetector`
+  fallback (reuses `ContradictionDetector`'s own antonym vocabulary), and
+  `NLIContradictionDetector` — a drop-in for `ContradictionDetector`'s
+  exact `detect(bundle)` contract, toggled via `USE_NLI_CONTRADICTION_DETECTOR`.
+- **`app/recommendation/verification.py`** — `RecommendationVerifier`
+  applies real evidence/confidence/graph-support thresholds on top of the
+  existing structural check; every recommendation gets a verification
+  record (status, reasons, supporting claim ids) whether it passed or not.
+- **`app/faithfulness/`** — `FaithfulnessScorer` checks whether each answer
+  sentence is entailed by a verified claim (via the same NLI detector),
+  computing overall/sentence/recommendation/graph faithfulness, claim
+  coverage, unsupported/hallucinated claim counts, and contradiction rate
+  as an explicit weighted composite — no black-box scorer.
+- **5 new orchestrator stages** (`claim_extraction`, `claim_verification`,
+  `confidence_propagation`, `verify_recommendations`, `faithfulness`)
+  inserted into the LangGraph pipeline between `reasoning` and `report`
+  (and after `report` for faithfulness) — the pipeline is now 13 stages.
+  `LLMNarrator` now generates "Key facts"/"Identified risks" from verified
+  Claim text when a Claim Graph is supplied, not raw Reasoning Graph node
+  descriptions.
+- **`ChatResponse` additions** (all additive/defaulted): `claims`,
+  `faithfulness`, `sentence_attributions`; each `recommendations[]` entry
+  gains `verification_status`/`verification_reasons`.
+- **7 new research benchmarks** (`claim_extraction_quality`,
+  `claim_verification_quality`, `nli_quality`,
+  `recommendation_verification_quality`, `faithfulness_quality`,
+  `claim_verification_ablation`, `nli_ablation`) — real numbers, not
+  fabricated, including an honest finding: `RuleBasedNLIDetector`'s
+  entailment accuracy is only 0.3333 on the hand-labeled set (its
+  lexical-overlap heuristic is conservative by design). See
+  [docs/benchmarks/README.md](docs/benchmarks/README.md#reasoning-benchmarks-o2).
+  Surfaced in a new Research Dashboard "Reasoning Benchmarks" section.
+- **Chat UI**: Faithfulness score panel, Claim Graph (per-claim
+  verification status/confidence/propagated confidence), per-recommendation
+  verification badge, expandable Reasoning Path per answer sentence.
+- No parallel infrastructure: every new benchmark runs through the same
+  `ExperimentManager` M5 built.
+
+### Documentation
+- New [docs/architecture/reasoning-verification.md](docs/architecture/reasoning-verification.md)
+  covering every O2 component with diagrams, real benchmark numbers, and
+  honest tradeoff analysis.
+- `docs/api/README.md`, `docs/benchmarks/README.md`, `docs/roadmap/README.md`,
+  `docs/architecture/README.md`, `docs/architecture/reasoning.md` updated.
+
 ## [1.4.0] — O1/O1.2: Retrieval & Knowledge Optimization
 
 A pure optimization milestone: no new end-user functionality, complete

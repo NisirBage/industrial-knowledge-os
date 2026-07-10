@@ -50,3 +50,40 @@ def test_chat_evidence_includes_explainability_fields(client):
         assert "ltr_score" in item
         assert item["final_rank"] == i
         assert item["explanation"].startswith(f"Rank #{i}.")
+
+
+def test_chat_response_includes_o2_cognitive_verification_fields(client):
+    """O2 (Faithful Cognitive Reasoning): every /chat response carries the
+    Claim Graph, Faithfulness Scoring, and Evidence Attribution surfaces —
+    additive fields on the existing ChatResponse contract."""
+    client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("o2_seed.txt", b"Pump P-9601 failed due to Valve V-9602 blockage.", "text/plain")},
+    )
+
+    response = client.post("/api/v1/chat", json={"query": "Why did P-9601 fail?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "claims" in body
+    assert "faithfulness" in body
+    assert "sentence_attributions" in body
+    assert isinstance(body["claims"], list)
+
+    if body["claims"]:
+        claim = body["claims"][0]
+        assert claim["verification_status"] in {
+            "supported",
+            "partially_supported",
+            "contradicted",
+            "insufficient_evidence",
+            "unknown",
+        }
+        assert "confidence" in claim
+
+    if body["faithfulness"] is not None:
+        assert 0.0 <= body["faithfulness"]["overall_faithfulness"] <= 1.0
+        assert "summary" in body["faithfulness"]
+
+    for recommendation in body["recommendations"]:
+        assert recommendation["verification_status"] in {"verified", "rejected", "unknown"}

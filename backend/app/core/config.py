@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     metadata_db_url: str = "sqlite+aiosqlite:///./ikios_metadata.db"
     learning_db_url: str = "sqlite+aiosqlite:///./ikios_learning.db"
     experiment_db_url: str = "sqlite+aiosqlite:///./ikios_experiments.db"
+    execution_db_url: str = "sqlite+aiosqlite:///./ikios_executions.db"
+    failure_pattern_db_url: str = "sqlite+aiosqlite:///./ikios_failure_patterns.db"
     ml_registry_db_url: str = "sqlite+aiosqlite:///./ikios_ml_registry.db"
     ml_models_dir: str = "./.ml_models"
 
@@ -36,6 +38,9 @@ class Settings(BaseSettings):
     enable_llm_entity_validation: bool = False
 
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    nli_model: str = "cross-encoder/nli-deberta-v3-base"
+    use_nli_contradiction_detector: bool = False
 
     cors_origins: str = "http://localhost:5173"
 

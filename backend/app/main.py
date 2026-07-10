@@ -25,15 +25,24 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agents.claim_extraction_agent import ClaimExtractionAgent
+from app.agents.claim_verification_agent import ClaimVerificationAgent
+from app.agents.confidence_propagation_agent import ConfidencePropagationAgent
 from app.agents.evidence_fusion_agent import EvidenceFusionAgent
+from app.agents.faithfulness_agent import FaithfulnessAgent
 from app.agents.knowledge_graph_agent import KnowledgeGraphAgent
 from app.agents.planner import PlannerAgent
 from app.agents.reasoning_agent import ReasoningAgent
 from app.agents.recommendation_agent import RecommendationAgent
+from app.agents.recommendation_verification_agent import RecommendationVerificationAgent
+from app.agents.reflection_agent import ReflectionAgent
 from app.agents.report_agent import ReportAgent
 from app.agents.retrieval_agent import RetrievalAgent
 from app.agents.verifier_agent import VerifierAgent
 from app.api.v1.router import api_router
+from app.claims.extraction import ClaimExtractionEngine
+from app.claims.propagation import GraphDecayConfidencePropagator
+from app.claims.verification import ClaimVerificationEngine
 from app.contradiction.detector import ContradictionDetector
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -43,6 +52,8 @@ from app.entity_extraction.llm_validator import LlmEntityValidator
 from app.entity_extraction.service import EntityExtractionService
 from app.evidence.fusion import EvidenceFusionEngine
 from app.evidence.graph import EvidenceGraphBuilder
+from app.faithfulness.scorer import FaithfulnessScorer
+from app.reflection.engine import SelfReflectionEngine
 from app.features.extractor import RuleBasedFeatureExtractor
 from app.feedback.engine import FeedbackEngine
 from app.graph.knowledge_graph_builder import KnowledgeGraphBuilder
@@ -55,6 +66,8 @@ from app.ml.monitoring.monitor import ModelMonitor
 from app.ml.registry.repository import SqlModelRegistry
 from app.ml.training.trainer import SklearnTrainer
 from app.narration.narrator import LLMNarrator
+from app.nli.contradiction_bridge import NLIContradictionDetector
+from app.nli.factory import build_nli_detector
 from app.orchestrator.graph import build_orchestrator
 from app.planning.executor import TaskGraphExecutor
 from app.planning.planner import TaskGraphPlanner
@@ -62,12 +75,15 @@ from app.prediction.engine import PredictionEngine
 from app.prediction.rule_models import build_rule_based_models
 from app.reasoning.reasoning_graph_builder import ReasoningGraphBuilder
 from app.recommendation.engine import RecommendationEngine
+from app.recommendation.verification import RecommendationVerifier
 from app.relation_extraction.factory import build_relation_extractor
 from app.repositories.graph_repository import build_graph_repository
 from app.repositories.learning_repository import SqlLearningRepository
 from app.repositories.metadata_repository import MetadataRepository
 from app.repositories.vector_repository import build_vector_repository
 from app.research.experiments.manager import ExperimentManager
+from app.execution.repository import SqlExecutionRepository
+from app.failure_intelligence.repository import SqlFailurePatternRepository
 from app.research.experiments.repository import SqlExperimentTracker
 from app.caching.lru_cache import LRUTTLCache
 from app.retrieval.bm25_index import Bm25Index
@@ -119,6 +135,7 @@ async def lifespan(app: FastAPI):
     entity_extractors_task = asyncio.to_thread(build_entity_extractors, settings.gliner_model, settings.gliner_threshold)
     reranker_task = asyncio.to_thread(build_reranker, settings.reranker_model)
     ocr_provider_task = asyncio.to_thread(build_ocr_provider)
+    nli_detector_task = asyncio.to_thread(build_nli_detector, settings.nli_model)
 
     (
         embedder,
@@ -127,12 +144,19 @@ async def lifespan(app: FastAPI):
         (primary_extractor, supplement_extractor),
         reranker,
         ocr_provider,
+        nli_detector,
     ) = await asyncio.gather(
-        embedder_task, vector_repository_task, graph_repository_task, entity_extractors_task, reranker_task, ocr_provider_task
+        embedder_task,
+        vector_repository_task,
+        graph_repository_task,
+        entity_extractors_task,
+        reranker_task,
+        ocr_provider_task,
+        nli_detector_task,
     )
     graph_repository.ensure_constraints()
 
-    logger.info("Independent dependency checks (embedder/qdrant/neo4j/gliner/reranker) completed in %.2fs", time.perf_counter() - startup_start)
+    logger.info("Independent dependency checks (embedder/qdrant/neo4j/gliner/reranker/nli) completed in %.2fs", time.perf_counter() - startup_start)
 
     metadata_repository = MetadataRepository(settings.metadata_db_url)
     await metadata_repository.init_models()
@@ -186,11 +210,31 @@ async def lifespan(app: FastAPI):
     task_graph_executor = TaskGraphExecutor(retriever, graph_repository, executor=task_graph_pool)
 
     evidence_fusion_engine = EvidenceFusionEngine()
-    contradiction_detector = ContradictionDetector()
+    # O2 Component 6: NLI-augmented contradiction detection is opt-in via
+    # config (USE_NLI_CONTRADICTION_DETECTOR) — an ablation switch, not a
+    # silent replacement. Off by default: the regex/antonym-vocabulary
+    # ContradictionDetector is deterministic and free; NLIContradictionDetector
+    # costs one model call per same-tag sentence pair.
+    contradiction_detector = (
+        NLIContradictionDetector(nli_detector) if settings.use_nli_contradiction_detector else ContradictionDetector()
+    )
     evidence_graph_builder = EvidenceGraphBuilder()
     reasoning_graph_builder = ReasoningGraphBuilder()
     recommendation_engine = RecommendationEngine(llm_provider)
     narrator = LLMNarrator(llm_provider)
+
+    # O2 (Faithful Cognitive Reasoning): the Cognitive Verification Layer —
+    # Claim Extraction/Verification/Confidence Propagation/Recommendation
+    # Verification/Faithfulness Scoring — reuses the exact same
+    # entity_extraction_service/relation_extractor/graph_repository/
+    # nli_detector instances everything else above already uses. No parallel
+    # NLP stack, no second graph repository.
+    claim_extraction_engine = ClaimExtractionEngine(entity_extraction_service, relation_extractor)
+    claim_verification_engine = ClaimVerificationEngine(graph_repository)
+    confidence_propagator = GraphDecayConfidencePropagator()
+    recommendation_verifier = RecommendationVerifier()
+    faithfulness_scorer = FaithfulnessScorer(nli_detector)
+    reflection_engine = SelfReflectionEngine()
 
     orchestrator = build_orchestrator(
         planner_agent=PlannerAgent(entity_extraction_service, task_graph_planner),
@@ -198,10 +242,32 @@ async def lifespan(app: FastAPI):
         knowledge_graph_agent=KnowledgeGraphAgent(graph_expansion),
         evidence_fusion_agent=EvidenceFusionAgent(evidence_fusion_engine),
         reasoning_agent=ReasoningAgent(contradiction_detector, evidence_graph_builder, reasoning_graph_builder),
+        claim_extraction_agent=ClaimExtractionAgent(claim_extraction_engine),
+        claim_verification_agent=ClaimVerificationAgent(claim_verification_engine),
+        confidence_propagation_agent=ConfidencePropagationAgent(confidence_propagator),
         recommendation_agent=RecommendationAgent(recommendation_engine),
         verifier_agent=VerifierAgent(),
+        recommendation_verification_agent=RecommendationVerificationAgent(recommendation_verifier),
         report_agent=ReportAgent(narrator),
+        faithfulness_agent=FaithfulnessAgent(faithfulness_scorer),
+        reflection_agent=ReflectionAgent(reflection_engine),
     )
+
+    # O3.3 (Unified Execution Trace & Failure Intelligence Core): independent
+    # of the chat orchestrator's own construction — ChatService below is
+    # handed this repository so every chat turn's ExecutionTrace is
+    # persisted alongside (not instead of) the existing ChatResponse
+    # contract.
+    execution_repository = SqlExecutionRepository(settings.execution_db_url)
+    await execution_repository.init_models()
+    app.state.execution_repository = execution_repository
+
+    # O3.4 (Failure Pattern Mining & Root Cause Intelligence): consumes
+    # ExecutionTrace exclusively (see app/failure_intelligence/) — its own
+    # dedicated table/repository, no shared storage with execution_repository.
+    failure_pattern_repository = SqlFailurePatternRepository(settings.failure_pattern_db_url)
+    await failure_pattern_repository.init_models()
+    app.state.failure_pattern_repository = failure_pattern_repository
 
     app.state.embedder = embedder
     app.state.ingestion_service = IngestionService(
@@ -213,7 +279,7 @@ async def lifespan(app: FastAPI):
         relation_extractor=relation_extractor,
         knowledge_graph_builder=knowledge_graph_builder,
     )
-    app.state.chat_service = ChatService(orchestrator)
+    app.state.chat_service = ChatService(orchestrator, graph_repository, execution_repository)
     app.state.metadata_repository = metadata_repository
 
     # Learning Layer (M4): independent of the chat orchestrator above by
@@ -261,6 +327,17 @@ async def lifespan(app: FastAPI):
     app.state.active_ranker = None
     app.state.merge_history = {}
     app.state.experiment_manager = experiment_manager
+
+    # O2 (Faithful Cognitive Reasoning): exposed for the research/benchmark
+    # API and any future standalone claim-inspection endpoint — the chat
+    # orchestrator above already owns its own references to these same
+    # instances, this is purely for reuse, not a second copy of state.
+    app.state.nli_detector = nli_detector
+    app.state.claim_extraction_engine = claim_extraction_engine
+    app.state.claim_verification_engine = claim_verification_engine
+    app.state.confidence_propagator = confidence_propagator
+    app.state.recommendation_verifier = recommendation_verifier
+    app.state.faithfulness_scorer = faithfulness_scorer
 
     # ML Laboratory (M6): also independent of the chat orchestrator. Trained
     # models are swapped into prediction_engine (M4) at runtime via

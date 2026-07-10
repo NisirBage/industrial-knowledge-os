@@ -15,6 +15,7 @@ import {
   AUTO_RUN_BENCHMARKS,
   COMPRESSION_LEVELS,
   OPTIMIZATION_BENCHMARKS,
+  REASONING_BENCHMARKS,
   getBenchmarkHistory,
   getCalibration,
   getEntityDuplicates,
@@ -41,6 +42,7 @@ export function ResearchPage() {
   const [abResult, setAbResult] = useState<ABTestResult | null>(null);
   const [calibration, setCalibration] = useState<CalibrationBucket[]>([]);
   const [optimizationResults, setOptimizationResults] = useState<Record<string, BenchmarkReport>>({});
+  const [reasoningResults, setReasoningResults] = useState<Record<string, BenchmarkReport>>({});
   const [compressionQuery, setCompressionQuery] = useState("");
   const [compressionLevel, setCompressionLevel] = useState<string>(COMPRESSION_LEVELS[1]);
   const [compressionPreview, setCompressionPreview] = useState<CompressionPreview | null>(null);
@@ -91,6 +93,19 @@ export function ResearchPage() {
     try {
       const report = await runBenchmark(name);
       setOptimizationResults((prev) => ({ ...prev, [name]: report }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Benchmark ${name} failed`);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleRunReasoningBenchmark(name: string) {
+    setLoading(`reasoning:${name}`);
+    setError(null);
+    try {
+      const report = await runBenchmark(name);
+      setReasoningResults((prev) => ({ ...prev, [name]: report }));
     } catch (err) {
       setError(err instanceof Error ? err.message : `Benchmark ${name} failed`);
     } finally {
@@ -396,6 +411,44 @@ export function ResearchPage() {
             </thead>
             <tbody>
               {Object.entries(optimizationResults).map(([name, report]) => (
+                <tr key={name} className="border-t border-slate-100">
+                  <td className="py-1 font-medium">{name}</td>
+                  <td className="py-1 text-slate-600">{report.metrics.map((m) => `${m.name}=${m.value}`).join(", ")}</td>
+                  <td className="py-1">{report.duration_seconds.toFixed(3)}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 p-4">
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">
+          Reasoning Benchmarks (Claim Verification, NLI, Faithfulness, Ablations)
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {REASONING_BENCHMARKS.map((name) => (
+            <button
+              key={name}
+              onClick={() => handleRunReasoningBenchmark(name)}
+              disabled={loading === `reasoning:${name}`}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {loading === `reasoning:${name}` ? "Running..." : name}
+            </button>
+          ))}
+        </div>
+        {Object.keys(reasoningResults).length > 0 && (
+          <table className="mt-3 w-full text-left text-sm">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="pb-1">Benchmark</th>
+                <th className="pb-1">Metrics</th>
+                <th className="pb-1">Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(reasoningResults).map(([name, report]) => (
                 <tr key={name} className="border-t border-slate-100">
                   <td className="py-1 font-medium">{name}</td>
                   <td className="py-1 text-slate-600">{report.metrics.map((m) => `${m.name}=${m.value}`).join(", ")}</td>

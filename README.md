@@ -1,10 +1,10 @@
 # IKIOS — Industrial Knowledge Intelligence OS
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-825%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-951%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.4.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 
@@ -37,13 +37,14 @@ disagree, and predicts what's likely to happen next.
 | Document Ingestion | Chunking, embeddings, entity/relation extraction |
 | Knowledge Graph | 24-label ontology, 15 relation types, persistent graph |
 | Hybrid Retrieval | BM25 + vector + graph expansion + cross-encoder reranking |
-| Agentic Reasoning | 8-stage LangGraph pipeline: plan → retrieve → fuse evidence → reason → recommend → verify → narrate |
+| Agentic Reasoning | 13-stage LangGraph pipeline: plan → retrieve → fuse evidence → reason → extract/verify/propagate claims → recommend → verify → narrate → score faithfulness |
 | Learning Layer | Timeline reconstruction, rule-based prediction, feedback loop |
 | Research Framework | Real benchmarks, reproducible experiments, A/B testing |
 | ML Laboratory | Real scikit-learn training, model registry, explainability, drift monitoring |
 | Multimodal Vision | OCR, diagram parsing, equipment/gauge/defect detection — images become graph evidence too |
 | Graph Intelligence | Node2Vec/DeepWalk/GCN/GraphSAGE/GAT embeddings, link prediction, node classification, risk propagation — another reasoning source, not a replacement for symbolic reasoning |
 | Retrieval Optimization | Learning-to-rank, parallel fetch, multi-level caching, entity resolution, context compression, retrieval explainability — all optional layers behind the existing Hybrid Retrieval interface |
+| Faithful Cognitive Reasoning | Structured Claim Graph, claim verification against the Knowledge Graph, NLI, confidence propagation, recommendation verification, and per-answer faithfulness scoring — the LLM narrates from verified claims only, never raw retrieved text |
 
 Every claim in a Chat answer traces back to a cited document chunk.
 Contradictions across sources are surfaced explicitly, never silently
@@ -57,8 +58,9 @@ flowchart LR
     A[Document Ingestion] --> B[Knowledge Graph]
     V[Vision Ingestion<br/>Images · P&IDs · Photos] --> B
     B --> C[Hybrid + Multimodal Retrieval]
-    C --> D[8-Stage Reasoning<br/>LangGraph Orchestrator]
-    D --> E[Learning Layer]
+    C --> D[Reasoning<br/>LangGraph Orchestrator]
+    D --> CV[Cognitive Verification Layer<br/>Claim Graph · NLI · Faithfulness Scoring]
+    CV --> E[Learning Layer]
     E --> F[Research Framework]
     E --> G[ML Laboratory]
     B --> H[Graph Intelligence<br/>Embeddings · Link Prediction · Node Classification]
@@ -116,6 +118,9 @@ for the full four-workspace tour.
 - **Research** — run benchmarks and A/B tests on demand, view experiment history
 - **ML Lab** — train a real scikit-learn model, view its ROC/calibration/confusion matrix, browse the model registry
 - **Vision** — upload an image, watch it get analyzed (OCR, diagram parsing, equipment detection, gauge reading, defect detection), explore results as overlays on the image, browse the Knowledge Graph entities created, and ask multimodal questions — see [docs/architecture/vision.md](docs/architecture/vision.md)
+- **Graph Intelligence** — explore the Knowledge Graph interactively, train embeddings, run link prediction and node classification, simulate risk propagation
+- **Executions** — browse every chat turn's `ExecutionTrace` (search/sort/filter), inspect a Pipeline Waterfall, confidence evolution, and Execution DAG for any execution
+- **Failure Intelligence** — mine recurring failure patterns, explore a Root Cause Graph, run counterfactual "what if this subsystem were disabled" simulations, and review evidence-backed optimization recommendations — see [docs/architecture/execution-intelligence.md](docs/architecture/execution-intelligence.md)
 
 Full API reference: [docs/api/README.md](docs/api/README.md).
 

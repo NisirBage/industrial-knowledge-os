@@ -1,8 +1,8 @@
-import cytoscape from "cytoscape";
-import type { Core, ElementDefinition } from "cytoscape";
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import type { ElementDefinition, Stylesheet } from "cytoscape";
+import { Component, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CytoscapeGraph } from "../components/CytoscapeGraph";
 import {
   GRAPH_BENCHMARKS,
   GRAPH_EMBEDDING_MODELS,
@@ -121,9 +121,6 @@ function GraphIntelligenceWorkspace() {
   const [registeredModels, setRegisteredModels] = useState<ModelRecord[]>([]);
   const [benchmarkResults, setBenchmarkResults] = useState<Record<string, BenchmarkReport>>({});
 
-  const cyContainerRef = useRef<HTMLDivElement>(null);
-  const cyRef = useRef<Core | null>(null);
-
   async function refreshGraph() {
     const [nextSummary, nextExport] = await Promise.all([getGraphSummary(), getGraphExport()]);
     setSummary(nextSummary);
@@ -169,78 +166,46 @@ function GraphIntelligenceWorkspace() {
     return [...nodeElements, ...edgeElements];
   }, [graphExport, typeFilter, nameFilter]);
 
-  useEffect(() => {
-    if (!cyContainerRef.current) return;
-    const cy = cytoscape({
-      container: cyContainerRef.current,
-      elements: visibleElements,
-      style: [
-        {
-          selector: "node",
-          style: {
-            "background-color": (ele) => communityColor(ele.data("community_id")),
-            label: "data(label)",
-            "font-size": 8,
-            width: 24,
-            height: 24,
-            color: "#334155",
-            "text-valign": "bottom",
-            "text-margin-y": 4,
-          },
+  const graphStylesheet = useMemo<Stylesheet[]>(
+    () => [
+      {
+        selector: "node",
+        style: {
+          "background-color": (ele) => communityColor(ele.data("community_id")),
+          label: "data(label)",
+          "font-size": 8,
+          width: 24,
+          height: 24,
+          color: "#334155",
+          "text-valign": "bottom",
+          "text-margin-y": 4,
         },
-        {
-          selector: "edge",
-          style: {
-            width: 1.5,
-            "line-color": "#cbd5e1",
-            "target-arrow-color": "#cbd5e1",
-            "target-arrow-shape": "triangle",
-            "curve-style": "bezier",
-            "font-size": 6,
-          },
+      },
+      {
+        selector: "edge",
+        style: {
+          width: 1.5,
+          "line-color": "#cbd5e1",
+          "target-arrow-color": "#cbd5e1",
+          "target-arrow-shape": "triangle",
+          "curve-style": "bezier",
+          "font-size": 6,
         },
-        {
-          selector: "node.selected",
-          style: { "border-width": 3, "border-color": "#4f46e5" },
-        },
-        {
-          selector: "node.highlighted",
-          style: { "background-color": "#dc2626", "border-width": 3, "border-color": "#dc2626" },
-        },
-      ],
-      layout: { name: "cose", animate: false },
-      wheelSensitivity: 0.2,
-    });
-    cy.on("tap", "node", (event) => {
-      setSelectedNodeId(event.target.id());
-    });
-    cyRef.current = cy;
-    return () => cy.destroy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleElements]);
-
-  useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
-    cy.nodes().removeClass("selected highlighted");
-    if (selectedNodeId) cy.getElementById(selectedNodeId).addClass("selected");
-    if (highlightedNodeIds) {
-      highlightedNodeIds.forEach((id) => cy.getElementById(id).addClass("highlighted"));
-    }
-  }, [selectedNodeId, highlightedNodeIds]);
+      },
+      {
+        selector: "node.selected",
+        style: { "border-width": 3, "border-color": "#4f46e5" },
+      },
+      {
+        selector: "node.highlighted",
+        style: { "background-color": "#dc2626", "border-width": 3, "border-color": "#dc2626" },
+      },
+    ],
+    [],
+  );
 
   function toggleType(type: string) {
     setTypeFilter((prev) => ({ ...prev, [type]: !prev[type] }));
-  }
-
-  function zoomBy(factor: number) {
-    const cy = cyRef.current;
-    if (!cy) return;
-    cy.zoom(cy.zoom() * factor);
-  }
-
-  function fitToScreen() {
-    cyRef.current?.fit(undefined, 30);
   }
 
   async function handleLookupFeatures() {
@@ -442,21 +407,14 @@ function GraphIntelligenceWorkspace() {
 
         {/* Component 1: Interactive graph */}
         <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Knowledge Graph</h2>
-            <div className="flex items-center gap-1 text-sm">
-              <button onClick={() => zoomBy(0.8)} className="rounded border border-slate-300 px-2 py-0.5" aria-label="Zoom out">
-                −
-              </button>
-              <button onClick={() => zoomBy(1.25)} className="rounded border border-slate-300 px-2 py-0.5" aria-label="Zoom in">
-                +
-              </button>
-              <button onClick={fitToScreen} className="ml-1 rounded border border-slate-300 px-2 py-0.5 text-xs">
-                Fit to screen
-              </button>
-            </div>
-          </div>
-          <div ref={cyContainerRef} data-testid="graph-canvas" className="rounded-lg border border-slate-200 bg-slate-50" style={{ height: 480 }} />
+          <h2 className="text-lg font-semibold text-slate-900">Knowledge Graph</h2>
+          <CytoscapeGraph
+            elements={visibleElements}
+            stylesheet={graphStylesheet}
+            onNodeTap={setSelectedNodeId}
+            selectedNodeId={selectedNodeId}
+            highlightedNodeIds={highlightedNodeIds}
+          />
           {selectedNode && (
             <p className="text-xs text-slate-600">
               Selected: <span className="font-medium">{selectedNode.canonical_name}</span> ({selectedNode.type}) — community{" "}

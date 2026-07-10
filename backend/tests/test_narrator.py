@@ -1,3 +1,4 @@
+from app.claims.models import Claim, ClaimGraph, ClaimType, ClaimVerificationStatus
 from app.narration.narrator import LLMNarrator
 from app.reasoning.graph_models import ReasoningGraph, ReasoningNode, ReasoningNodeType
 from app.recommendation.models import RecommendationBundle
@@ -98,3 +99,53 @@ def test_malicious_document_derived_fact_is_confined_inside_retrieved_evidence_t
     # The injected text must not appear before the opening tag (e.g. spliced
     # into the query line or ahead of the delimiter).
     assert injection_attempt not in prompt[:tag_start]
+
+
+def test_narrate_with_claim_graph_uses_verified_claim_text_not_raw_reasoning_node():
+    provider = _CapturingLLMProvider()
+    graph = ReasoningGraph(nodes=[], edges=[], summary="summary")
+    graph.add_node(ReasoningNode(id="fact:c1", node_type=ReasoningNodeType.FACT, description="raw unverified chunk text", confidence=0.7))
+    claim_graph = ClaimGraph(
+        claims=[
+            Claim(
+                id="claim:c1",
+                claim_type=ClaimType.FACT,
+                text="Equipment = Pump P-101",
+                subject="P-101",
+                predicate="is_a",
+                verification_status=ClaimVerificationStatus.SUPPORTED,
+            )
+        ],
+        relations=[],
+    )
+
+    LLMNarrator(provider).narrate(
+        "query", graph, RecommendationBundle(recommendations=[], overall_confidence=0.5), claim_graph=claim_graph
+    )
+
+    assert "Equipment = Pump P-101" in provider.last_user_prompt
+    assert "raw unverified chunk text" not in provider.last_user_prompt
+
+
+def test_narrate_with_claim_graph_excludes_unsupported_claims():
+    provider = _CapturingLLMProvider()
+    graph = ReasoningGraph(nodes=[], edges=[], summary="summary")
+    claim_graph = ClaimGraph(
+        claims=[
+            Claim(
+                id="claim:c1",
+                claim_type=ClaimType.FACT,
+                text="A claim that never got verified",
+                subject="X",
+                predicate="is_a",
+                verification_status=ClaimVerificationStatus.UNKNOWN,
+            )
+        ],
+        relations=[],
+    )
+
+    LLMNarrator(provider).narrate(
+        "query", graph, RecommendationBundle(recommendations=[], overall_confidence=0.5), claim_graph=claim_graph
+    )
+
+    assert "A claim that never got verified" not in provider.last_user_prompt

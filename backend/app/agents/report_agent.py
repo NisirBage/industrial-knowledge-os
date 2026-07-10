@@ -20,7 +20,7 @@ class ReportAgent:
         recommendation_bundle = state.get("recommendation_bundle") or RecommendationBundle(recommendations=[], overall_confidence=0.5)
         bundle = state["evidence_bundle"]
 
-        answer = self._narrator.narrate(state["query"], reasoning_graph, recommendation_bundle)
+        answer = self._narrator.narrate(state["query"], reasoning_graph, recommendation_bundle, claim_graph=state.get("claim_graph"))
 
         citations = [
             {

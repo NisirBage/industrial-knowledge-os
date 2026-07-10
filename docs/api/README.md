@@ -27,10 +27,22 @@ size: `MAX_UPLOAD_SIZE_MB` (default 25MB; oversized → `413`) — see
 
 | Method | Path | Description |
 | --- | --- | --- |
-| POST | `/chat` | `{"query": "..."}` → runs the 8-stage LangGraph pipeline, returns a cited answer, evidence, contradictions, recommendations, and per-stage latencies |
+| POST | `/chat` | `{"query": "..."}` → runs the 13-stage LangGraph pipeline, returns a cited answer, evidence, contradictions, recommendations, claims, faithfulness, sentence attributions, and per-stage latencies |
 
 See [docs/architecture/reasoning.md](../architecture/reasoning.md) for what
 happens inside.
+
+**O2 additions to the response** (all additive/defaulted — pre-O2 clients
+are unaffected): `claims` (the verified, propagated-confidence Claim Graph —
+id/type/text/subject/predicate/confidence/propagated_confidence/
+verification_status/support_count/contradiction_count per claim);
+`faithfulness` (overall/sentence/recommendation/graph faithfulness, claim
+coverage, unsupported/hallucinated claim counts, contradiction rate — `null`
+if the query produced no evidence); `sentence_attributions` (per-answer-
+sentence supporting claim/evidence/graph-node ids, graph edges, confidence,
+and a human-readable reasoning path); each `recommendations[]` entry also
+gains `verification_status` (`verified`/`rejected`) and `verification_reasons`.
+See [docs/architecture/reasoning-verification.md](../architecture/reasoning-verification.md).
 
 ## Timeline (M4)
 
@@ -76,7 +88,8 @@ Prefix: `/research`
 Valid `benchmark_name` values: `entity_extraction`, `relation_extraction`,
 `knowledge_graph`, `hybrid_retrieval`, `reasoning`, `recommendation`,
 `prediction`, `timeline`, plus 7 vision benchmarks added in M7 — see the
-[Vision section](#vision-m7) below.
+[Vision section](#vision-m7) below — and the O1/O1.2/O2 optimization/
+reasoning benchmark names listed further down.
 
 ## ML Lab (M6)
 
@@ -206,6 +219,17 @@ call it; compression stays optional per the O1.2 architectural constraint.
 New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`
 (see the Research section above): `ranking_quality`, `context_compression`,
 `evidence_deduplication`, `entity_resolution`.
+
+## Cognitive Verification Layer additions (O2)
+
+No new REST endpoints — every O2 capability is exposed as additive fields
+on the existing `POST /chat` response (see the Chat section above).
+
+New auto-runnable benchmark names for `POST /research/benchmarks/{name}/run`:
+`claim_extraction_quality`, `claim_verification_quality`, `nli_quality`,
+`recommendation_verification_quality`, `faithfulness_quality`,
+`claim_verification_ablation`, `nli_ablation`. See
+[docs/architecture/reasoning-verification.md](../architecture/reasoning-verification.md#reasoning-benchmarks-component-9--ablations).
 
 ## Error handling
 

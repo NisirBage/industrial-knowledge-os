@@ -150,6 +150,51 @@ and call-counting assertions, not benchmark-suite metrics. See
 [docs/architecture/retrieval-optimization.md](../architecture/retrieval-optimization.md#component-4--parallel-retrieval-executor)
 for what those tests actually prove.
 
+## Reasoning benchmarks (O2)
+
+Run via `app/research/benchmarks/reasoning_runners.py` against small
+self-contained synthetic/hand-labeled input, same discipline as the O1/O1.2
+optimization benchmarks above. See
+[docs/architecture/reasoning-verification.md](../architecture/reasoning-verification.md)
+for what each component does; these are the real numbers from the last
+verified run.
+
+| Benchmark | Sample size | Key metrics |
+|---|---|---|
+| claim_extraction_quality | 2 (worked example + negative case) | claims_extracted=2, relations_extracted=1, expected_subject_recall=1.0, no_entity_text_claim_count=0 |
+| claim_verification_quality | 4 hand-labeled scenarios | accuracy=1.0 |
+| nli_quality | 9 hand-labeled pairs (3/label) | accuracy=0.7778, entailment_accuracy=0.3333, neutral_accuracy=1.0, contradiction_accuracy=1.0 |
+| recommendation_verification_quality | 5 hand-labeled scenarios | precision=1.0, recall=1.0, f1=1.0 |
+| faithfulness_quality | 2 synthetic answers (faithful vs. hallucinated) | faithful_answer_score=1.0, hallucinated_answer_score=0.6, correctly_ranked=1.0, unsupported_claim_count=1, claim_coverage=0.5, calibration_error_brier=0.0671 |
+| claim_verification_ablation | 2-claim synthetic scenario | disabled: 2/2 kept (0 checked); rule_based (no KG populated): 0/2 kept; rule_plus_graph (KG populated): 2/2 kept |
+| nli_ablation | synthetic contradiction scenario | disabled: 0 contradictions found; rules (RuleBasedNLIDetector): 1 contradiction found |
+
+**Honest reading of `nli_quality`**: overall accuracy (0.7778) hides a real
+weak spot — `RuleBasedNLIDetector`'s entailment_accuracy is only **0.3333**
+(1 of 3). Its entailment rule is a coarse lexical-overlap heuristic (near-
+identical wording only); paraphrases with different wording but the same
+meaning are correctly NOT flagged as contradictions (good) but also aren't
+recognized as entailment (the honest cost of a conservative heuristic).
+`neutral_accuracy`/`contradiction_accuracy` are both 1.0 on this hand-labeled
+set — reported as-is, not tuned to hide the entailment gap. A real
+transformer NLI model (`TransformerNLIDetector`, the default when a model
+can load) would be expected to do meaningfully better on entailment; this
+number specifically characterizes the always-available fallback.
+
+**`claim_verification_ablation`'s `rule_based` (no Knowledge Graph
+populated) configuration keeps 0 of 2 claims** — with an empty graph and no
+other evidence corroborating each claim beyond its own origin chunk, both
+claims land on `INSUFFICIENT_EVIDENCE` and get dropped. This is the real,
+literal mechanism behind "unsupported claims never reach the narrator," not
+a benchmark artifact — populating the graph (`rule_plus_graph`) is what
+lets both claims reach `SUPPORTED`/`PARTIALLY_SUPPORTED` and survive.
+
+**Reasoning Latency is not a separate benchmark** — every `BenchmarkReport`
+above already carries a real measured `duration_seconds` (all sub-7ms on
+this hardware for these small synthetic inputs, dominated by claim-graph
+construction/traversal, not by any model inference — `nli_quality` and
+`claim_verification_ablation` don't load a transformer model at all).
+
 ## Notes on methodology and limitations
 
 - Documents are synthetically generated (seeded, deterministic) — see

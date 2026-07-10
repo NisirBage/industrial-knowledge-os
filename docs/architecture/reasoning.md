@@ -10,14 +10,26 @@ flowchart TD
     R --> KG[Knowledge Graph]
     KG --> EF[Evidence Fusion]
     EF --> RS[Reasoning]
-    RS --> RC[Recommendation]
+    RS --> CE[Claim Extraction]
+    CE --> CV[Claim Verification]
+    CV --> CP[Confidence Propagation]
+    CP --> RC[Recommendation]
     RC --> V[Verifier]
-    V --> RP[Report / Narration]
+    V --> RV[Recommendation Verification]
+    RV --> RP[Report / Narration]
+    RP --> FS[Faithfulness Scoring]
 ```
 
 Implemented in [`app/orchestrator/graph.py`](../../backend/app/orchestrator/graph.py).
 Verifier runs *after* Recommendation, not before — verification only makes
-sense once there are recommendations to verify.
+sense once there are recommendations to verify. The five O2 stages (Claim
+Extraction through Faithfulness Scoring) are a deterministic **Cognitive
+Verification Layer** inserted between Reasoning and Narration — see
+[reasoning-verification.md](reasoning-verification.md) for the full
+writeup. The short version: the Narrator (stage 8 below) generates from
+*verified claims*, never directly from raw evidence text, and Faithfulness
+Scoring (stage 9, new) grades the answer it actually produced against those
+same claims afterward.
 
 ## 1. Planner
 
@@ -82,7 +94,16 @@ against the reasoning stage having drawn an unsupported conclusion.
 cited, human-readable answer. Runs in `mock` mode by default (deterministic,
 offline, no API key) — set `LLM_PROVIDER=anthropic` for real generated
 narration; every other stage is identical either way, since narration is the
-only stage that touches an LLM.
+only stage that touches an LLM. Since O2, when a Claim Graph is available
+the Narrator's "Key facts"/"Identified risks" context comes from verified
+Claim text, not raw Reasoning Graph node descriptions — see
+[reasoning-verification.md](reasoning-verification.md).
+
+## 9. Faithfulness Scoring (O2)
+
+[`FaithfulnessAgent`](../../backend/app/agents/faithfulness_agent.py) runs
+last, after the answer exists, scoring it against the verified Claim Graph.
+See [reasoning-verification.md](reasoning-verification.md#component-8--faithfulness-scoring).
 
 ## Why evidence fusion + a temporary per-query graph, not just "stuff it in the prompt"
 

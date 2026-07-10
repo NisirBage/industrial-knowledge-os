@@ -60,6 +60,82 @@ class RecommendationOut(BaseModel):
     confidence: float
     justification: str
     supporting_evidence: list[str]
+    # O2 Component 7 (Recommendation Verification): populated from the
+    # RecommendationVerification record keyed by this recommendation's id.
+    # Defaulted so old callers/tests constructing RecommendationOut without
+    # them are unaffected.
+    verification_status: str = "unknown"
+    verification_reasons: list[str] = []
+
+
+class ClaimOut(BaseModel):
+    """O2 Components 1-3 (Claim Graph / Extraction / Verification): the
+    Structured Claim Graph's per-claim record, exposed so the frontend can
+    render claims, their verification status, and confidence directly."""
+
+    id: str
+    claim_type: str
+    text: str
+    subject: str
+    predicate: str
+    object: str = ""
+    confidence: float
+    propagated_confidence: float | None = None
+    source_evidence_ids: list[str] = []
+    verification_status: str
+    verification_notes: str = ""
+    support_count: int = 0
+    contradiction_count: int = 0
+
+
+class SentenceFaithfulnessOut(BaseModel):
+    sentence: str
+    entailed: bool
+    best_claim_id: str | None = None
+    score: float
+
+
+class FaithfulnessOut(BaseModel):
+    """O2 Component 8 (Faithfulness Scoring)."""
+
+    overall_faithfulness: float
+    sentence_faithfulness: list[SentenceFaithfulnessOut]
+    recommendation_faithfulness: float
+    graph_faithfulness: float
+    claim_coverage: float
+    unsupported_claim_count: int
+    hallucinated_claim_count: int
+    missing_evidence_count: int
+    contradiction_rate: float
+    summary: str
+
+
+class SentenceAttributionOut(BaseModel):
+    """O2 Component 4 (Evidence Attribution): per-sentence provenance for
+    the final answer — which claim, evidence, and Knowledge Graph node
+    back each sentence, and the reasoning path connecting them."""
+
+    sentence: str
+    supporting_claim_ids: list[str] = []
+    supporting_evidence_ids: list[str] = []
+    graph_node_ids: list[str] = []
+    graph_edge_descriptions: list[str] = []
+    confidence: float = 0.0
+    reasoning_path: str = ""
+
+
+class ReflectionReportOut(BaseModel):
+    """O3 Component 3 (Self-Reflection Engine): read-only post-answer
+    analysis — never influences the answer or confidence themselves."""
+
+    evidence_sufficient: bool
+    evidence_sufficiency_note: str
+    confidence_justified: bool
+    confidence_justification_note: str
+    recommendations_verified_ratio: float
+    additional_retrieval_suggested: bool
+    additional_retrieval_note: str
+    summary: str
 
 
 class ChatResponse(BaseModel):
@@ -72,3 +148,10 @@ class ChatResponse(BaseModel):
     contradictions: list[ContradictionOut]
     recommendations: list[RecommendationOut]
     latencies: dict[str, float]
+    # O2 additions — all defaulted so pre-O2 clients deserializing this
+    # response are unaffected.
+    claims: list[ClaimOut] = []
+    faithfulness: FaithfulnessOut | None = None
+    sentence_attributions: list[SentenceAttributionOut] = []
+    # O3 additions — additive/defaulted so pre-O3 clients are unaffected.
+    reflection: ReflectionReportOut | None = None

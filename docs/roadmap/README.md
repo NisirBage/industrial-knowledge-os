@@ -121,6 +121,32 @@ follows is real future work, not vague aspiration.
   word-count proxy today, consistent enough for before/after ratios but not
   exact subword counts
 
+## Faithful Cognitive Reasoning (O2)
+
+- **Real dependency parsing for Claim Extraction** (spaCy-based), replacing
+  today's sentence-scoped keyword-cue rule extraction
+- **A future LLM-assisted claim extractor** — a documented extension point,
+  not implemented, same honest-stub discipline as `NeuralRanker`
+- **Vision Results / Predictions as genuine Claim Verification / Confidence
+  Propagation inputs** — no chat-time call to the Vision Knowledge Graph or
+  Prediction Engine exists today, so wiring either in without a real call
+  would be fabricated corroboration
+- **`BayesianConfidencePropagator` real implementation** — currently a
+  documented `NotImplementedError` stub
+- **A ModernBERT NLI model** once one is published with a compatible
+  `sentence-transformers` CrossEncoder checkpoint (`TransformerNLIDetector`
+  already accepts any such model via `NLI_MODEL`)
+- **`RECOMMENDATION`/`PREDICTION` claim materialization** in the Claim
+  Graph itself — today Recommendation Verification reads `Recommendation`
+  objects directly rather than a parallel claim representation
+- **Pre-filtering candidate claims by shared entity ids** before
+  Faithfulness Scoring's NLI pass, needed once claim/answer counts grow
+  beyond demo scale (today: one NLI call per claim × sentence pair)
+- **The full 8-axis ablation cross-product** (Retrieval × Ranking ×
+  Compression × Claim Verification × NLI × Recommendations × Confidence ×
+  Faithfulness) — today's `claim_verification_ablation`/`nli_ablation`
+  benchmarks cover the two axes O2 itself adds, not the full grid
+
 ## Platform
 
 - Authentication/authorization (none exists today — single-tenant, trusted

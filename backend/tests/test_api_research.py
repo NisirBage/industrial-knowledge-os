@@ -65,6 +65,60 @@ def test_optimization_benchmark_run_appears_in_history(client):
     assert all(e["name"] == "benchmark:context_compression" for e in response.json())
 
 
+def test_run_each_reasoning_benchmark(client):
+    reasoning_benchmarks = [
+        "claim_extraction_quality",
+        "claim_verification_quality",
+        "nli_quality",
+        "recommendation_verification_quality",
+        "faithfulness_quality",
+        "claim_verification_ablation",
+        "nli_ablation",
+    ]
+    for benchmark_name in reasoning_benchmarks:
+        response = client.post(f"/api/v1/research/benchmarks/{benchmark_name}/run", json={"sample_size": 5, "seed": 1})
+        assert response.status_code == 200, f"{benchmark_name} failed: {response.text}"
+        body = response.json()
+        assert body["benchmark_name"] == benchmark_name
+        assert isinstance(body["metrics"], list)
+        assert len(body["metrics"]) > 0
+
+
+def test_run_each_failure_intelligence_benchmark(client):
+    failure_intelligence_benchmarks = [
+        "failure_pattern_mining_quality",
+        "root_cause_attribution_accuracy",
+        "counterfactual_consistency",
+        "optimization_recommendation_groundedness",
+        "failure_intelligence_latency",
+    ]
+    for benchmark_name in failure_intelligence_benchmarks:
+        response = client.post(f"/api/v1/research/benchmarks/{benchmark_name}/run", json={"sample_size": 5, "seed": 1})
+        assert response.status_code == 200, f"{benchmark_name} failed: {response.text}"
+        body = response.json()
+        assert body["benchmark_name"] == benchmark_name
+        assert isinstance(body["metrics"], list)
+        assert len(body["metrics"]) > 0
+
+
+def test_run_execution_trace_overhead_benchmark(client):
+    response = client.post("/api/v1/research/benchmarks/execution_trace_overhead/run", json={"sample_size": 5, "seed": 1})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["benchmark_name"] == "execution_trace_overhead"
+    assert isinstance(body["metrics"], list)
+    assert len(body["metrics"]) > 0
+
+
+def test_reasoning_benchmark_run_appears_in_history(client):
+    client.post("/api/v1/research/benchmarks/faithfulness_quality/run", json={"sample_size": 5, "seed": 4})
+
+    response = client.get("/api/v1/research/benchmarks/faithfulness_quality/history")
+
+    assert response.status_code == 200
+    assert all(e["name"] == "benchmark:faithfulness_quality" for e in response.json())
+
+
 def test_graph_benchmark_run_appears_in_history(client):
     client.post("/api/v1/research/benchmarks/graph_link_prediction/run", json={"sample_size": 5, "seed": 4})
 

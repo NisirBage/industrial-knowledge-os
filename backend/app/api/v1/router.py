@@ -5,6 +5,8 @@ from app.api.v1 import (
     context_compression,
     documents,
     entity_resolution,
+    execution,
+    failure_intelligence,
     feedback,
     graph_intelligence,
     health,
@@ -32,3 +34,5 @@ api_router.include_router(graph_intelligence.router)
 api_router.include_router(ranking.router)
 api_router.include_router(entity_resolution.router)
 api_router.include_router(context_compression.router)
+api_router.include_router(execution.router)
+api_router.include_router(failure_intelligence.router)

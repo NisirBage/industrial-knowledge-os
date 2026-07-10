@@ -38,6 +38,23 @@ from app.research.benchmarks.optimization_runners import (
     EntityResolutionBenchmark,
     RankingQualityBenchmark,
 )
+from app.research.benchmarks.reasoning_runners import (
+    ClaimExtractionBenchmark,
+    ClaimVerificationAblationBenchmark,
+    ClaimVerificationBenchmark,
+    FaithfulnessBenchmark,
+    NLIAblationBenchmark,
+    NLIBenchmark,
+    RecommendationVerificationBenchmark,
+)
+from app.research.benchmarks.execution_trace_runners import ExecutionTraceBenchmark
+from app.research.benchmarks.failure_intelligence_runners import (
+    CounterfactualConsistencyBenchmark,
+    FailureIntelligenceLatencyBenchmark,
+    FailurePatternMiningBenchmark,
+    OptimizationRecommendationGroundednessBenchmark,
+    RootCauseAttributionBenchmark,
+)
 from app.research.datasets.generator import SyntheticDatasetGenerator
 from app.research.experiments.manager import ExperimentManager
 from app.research.experiments.models import Experiment
@@ -78,6 +95,19 @@ _AUTO_RUN_BENCHMARKS = {
     "context_compression",
     "evidence_deduplication",
     "entity_resolution",
+    "claim_extraction_quality",
+    "claim_verification_quality",
+    "nli_quality",
+    "recommendation_verification_quality",
+    "faithfulness_quality",
+    "claim_verification_ablation",
+    "nli_ablation",
+    "failure_pattern_mining_quality",
+    "root_cause_attribution_accuracy",
+    "counterfactual_consistency",
+    "optimization_recommendation_groundedness",
+    "failure_intelligence_latency",
+    "execution_trace_overhead",
 }
 
 # M7 vision benchmarks generate their own small deterministic synthetic
@@ -117,6 +147,40 @@ _OPTIMIZATION_BENCHMARK_NAMES = {
     "evidence_deduplication",
     "entity_resolution",
 }
+
+# O2 reasoning benchmarks (Cognitive Verification Layer) likewise generate
+# their own small deterministic synthetic/hand-labeled input (see
+# reasoning_runners.py) — real production components (ClaimExtractionEngine,
+# ClaimVerificationEngine, RuleBasedNLIDetector, RecommendationVerifier,
+# FaithfulnessScorer), never the live production graph.
+_REASONING_BENCHMARK_NAMES = {
+    "claim_extraction_quality",
+    "claim_verification_quality",
+    "nli_quality",
+    "recommendation_verification_quality",
+    "faithfulness_quality",
+    "claim_verification_ablation",
+    "nli_ablation",
+}
+
+# O3.4 failure intelligence benchmarks likewise generate their own small
+# synthetic ExecutionTrace fixtures with constructed ground truth (see
+# failure_intelligence_runners.py) — real production components
+# (FailurePatternMiner, FailureAttributionEngine, CounterfactualSimulator,
+# OptimizationRecommendationEngine, RootCauseGraphBuilder,
+# RuleBasedClusteringStrategy), never live execution history.
+_FAILURE_INTELLIGENCE_BENCHMARK_NAMES = {
+    "failure_pattern_mining_quality",
+    "root_cause_attribution_accuracy",
+    "counterfactual_consistency",
+    "optimization_recommendation_groundedness",
+    "failure_intelligence_latency",
+}
+
+# O3.3 execution trace benchmark: real orchestrator run with fakes (see
+# execution_trace_runners.py) — per-stage latency, event volume/trace size,
+# cache effectiveness, and instrumentation overhead.
+_EXECUTION_TRACE_BENCHMARK_NAMES = {"execution_trace_overhead"}
 
 
 def _experiment_to_out(experiment: Experiment) -> ExperimentOut:
@@ -204,6 +268,34 @@ async def run_benchmark(benchmark_name: str, payload: BenchmarkRunRequest, reque
             report = await DeduplicationBenchmark().run()
         else:
             report = await EntityResolutionBenchmark().run()
+    elif benchmark_name in _REASONING_BENCHMARK_NAMES:
+        if benchmark_name == "claim_extraction_quality":
+            report = await ClaimExtractionBenchmark().run()
+        elif benchmark_name == "claim_verification_quality":
+            report = await ClaimVerificationBenchmark().run()
+        elif benchmark_name == "nli_quality":
+            report = await NLIBenchmark().run()
+        elif benchmark_name == "recommendation_verification_quality":
+            report = await RecommendationVerificationBenchmark().run()
+        elif benchmark_name == "faithfulness_quality":
+            report = await FaithfulnessBenchmark().run()
+        elif benchmark_name == "claim_verification_ablation":
+            report = await ClaimVerificationAblationBenchmark().run()
+        else:
+            report = await NLIAblationBenchmark().run()
+    elif benchmark_name in _FAILURE_INTELLIGENCE_BENCHMARK_NAMES:
+        if benchmark_name == "failure_pattern_mining_quality":
+            report = await FailurePatternMiningBenchmark().run()
+        elif benchmark_name == "root_cause_attribution_accuracy":
+            report = await RootCauseAttributionBenchmark().run()
+        elif benchmark_name == "counterfactual_consistency":
+            report = await CounterfactualConsistencyBenchmark().run()
+        elif benchmark_name == "optimization_recommendation_groundedness":
+            report = await OptimizationRecommendationGroundednessBenchmark().run()
+        else:
+            report = await FailureIntelligenceLatencyBenchmark().run()
+    elif benchmark_name in _EXECUTION_TRACE_BENCHMARK_NAMES:
+        report = await ExecutionTraceBenchmark().run()
     elif benchmark_name in _VISION_BENCHMARK_NAMES:
         if benchmark_name == "vision_ocr":
             report = await OCRBenchmark(request.app.state.vision_ocr_provider).run()

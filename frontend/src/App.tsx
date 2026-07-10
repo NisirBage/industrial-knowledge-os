@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { ChatPage } from "./pages/ChatPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
+import { ExecutionsPage } from "./pages/ExecutionsPage";
+import { FailureIntelligencePage } from "./pages/FailureIntelligencePage";
 import { GraphIntelligencePage } from "./pages/GraphIntelligencePage";
 import { MLLabPage } from "./pages/MLLabPage";
 import { ResearchPage } from "./pages/ResearchPage";
 import { VisionPage } from "./pages/VisionPage";
 
-type Tab = "chat" | "documents" | "research" | "ml-lab" | "vision" | "graph-intelligence";
+type Tab = "chat" | "documents" | "research" | "ml-lab" | "vision" | "graph-intelligence" | "executions" | "failure-intelligence";
 
 const TAB_LABELS: Record<Tab, string> = {
   chat: "Chat",
@@ -15,6 +17,8 @@ const TAB_LABELS: Record<Tab, string> = {
   "ml-lab": "ML Lab",
   vision: "Vision",
   "graph-intelligence": "Graph Intelligence",
+  executions: "Executions",
+  "failure-intelligence": "Failure Intelligence",
 };
 
 function App() {
@@ -25,7 +29,7 @@ function App() {
       <header className="border-b border-slate-200 bg-white px-6 py-4">
         <h1 className="text-xl font-semibold text-slate-900">Industrial Knowledge Intelligence OS</h1>
         <nav className="mt-3 flex gap-2">
-          {(["chat", "documents", "research", "ml-lab", "vision", "graph-intelligence"] as const).map((t) => (
+          {(["chat", "documents", "research", "ml-lab", "vision", "graph-intelligence", "executions", "failure-intelligence"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -49,8 +53,12 @@ function App() {
           <MLLabPage />
         ) : tab === "vision" ? (
           <VisionPage />
-        ) : (
+        ) : tab === "graph-intelligence" ? (
           <GraphIntelligencePage />
+        ) : tab === "executions" ? (
+          <ExecutionsPage />
+        ) : (
+          <FailureIntelligencePage />
         )}
       </main>
     </div>

@@ -50,6 +50,57 @@ export interface Recommendation {
   confidence: number;
   justification: string;
   supporting_evidence: string[];
+  // O2 Component 7 (Recommendation Verification)
+  verification_status: string;
+  verification_reasons: string[];
+}
+
+// --- O2 (Faithful Cognitive Reasoning) ---
+
+export interface Claim {
+  id: string;
+  claim_type: string;
+  text: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  confidence: number;
+  propagated_confidence: number | null;
+  source_evidence_ids: string[];
+  verification_status: string;
+  verification_notes: string;
+  support_count: number;
+  contradiction_count: number;
+}
+
+export interface SentenceFaithfulness {
+  sentence: string;
+  entailed: boolean;
+  best_claim_id: string | null;
+  score: number;
+}
+
+export interface Faithfulness {
+  overall_faithfulness: number;
+  sentence_faithfulness: SentenceFaithfulness[];
+  recommendation_faithfulness: number;
+  graph_faithfulness: number;
+  claim_coverage: number;
+  unsupported_claim_count: number;
+  hallucinated_claim_count: number;
+  missing_evidence_count: number;
+  contradiction_rate: number;
+  summary: string;
+}
+
+export interface SentenceAttribution {
+  sentence: string;
+  supporting_claim_ids: string[];
+  supporting_evidence_ids: string[];
+  graph_node_ids: string[];
+  graph_edge_descriptions: string[];
+  confidence: number;
+  reasoning_path: string;
 }
 
 export interface ChatResponse {
@@ -62,6 +113,9 @@ export interface ChatResponse {
   contradictions: Contradiction[];
   recommendations: Recommendation[];
   latencies: Record<string, number>;
+  claims: Claim[];
+  faithfulness: Faithfulness | null;
+  sentence_attributions: SentenceAttribution[];
 }
 
 export interface DocumentSummary {
@@ -167,6 +221,16 @@ export interface CalibrationBucket {
 export const AUTO_RUN_BENCHMARKS = ["entity_extraction", "relation_extraction", "knowledge_graph"] as const;
 
 export const OPTIMIZATION_BENCHMARKS = ["ranking_quality", "context_compression", "evidence_deduplication", "entity_resolution"] as const;
+
+export const REASONING_BENCHMARKS = [
+  "claim_extraction_quality",
+  "claim_verification_quality",
+  "nli_quality",
+  "recommendation_verification_quality",
+  "faithfulness_quality",
+  "claim_verification_ablation",
+  "nli_ablation",
+] as const;
 
 export async function listExperiments(): Promise<Experiment[]> {
   const response = await fetch(`${API_BASE_URL}/research/experiments`);
@@ -689,4 +753,222 @@ export async function previewContextCompression(
     body: JSON.stringify({ query, top_k: topK, level }),
   });
   return handleResponse<CompressionPreview>(response);
+}
+
+// --- Execution Trace (O3.3) ---
+
+export interface ExecutionEvent {
+  event_type: string;
+  component: string;
+  timestamp: string;
+  duration: number;
+  inputs: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  confidence: number | null;
+  latency: number;
+  memory_bytes: number | null;
+}
+
+export interface ExecutionTrace {
+  execution_id: string;
+  query: string;
+  events: ExecutionEvent[];
+  latencies: Record<string, number>;
+  memory: Record<string, number>;
+  confidence: number;
+  timestamps: Record<string, string>;
+  planner_trace: Record<string, unknown> | null;
+  retrieval_trace: Record<string, unknown> | null;
+  ranking_trace: Record<string, unknown> | null;
+  compression_trace: Record<string, unknown> | null;
+  claim_extraction_trace: Record<string, unknown> | null;
+  verification_trace: Record<string, unknown> | null;
+  nli_trace: Record<string, unknown> | null;
+  recommendation_trace: Record<string, unknown> | null;
+  faithfulness_trace: Record<string, unknown> | null;
+  reflection_trace: Record<string, unknown> | null;
+  vision_trace: Record<string, unknown> | null;
+  prediction_trace: Record<string, unknown> | null;
+  graph_trace: Record<string, unknown> | null;
+  cache_trace: Record<string, unknown> | null;
+}
+
+export interface TimelineSpan {
+  component: string;
+  started_at: string;
+  finished_at: string;
+  duration_seconds: number;
+  confidence: number | null;
+  memory_bytes: number | null;
+}
+
+export interface ExecutionDAG {
+  nodes: string[];
+  edges: string[][];
+}
+
+export interface ReconstructedTimeline {
+  spans: TimelineSpan[];
+  component_order: string[];
+  parallel_branches: string[][];
+  cache_hits: string[];
+  confidence_evolution: [string, number][];
+  dag: ExecutionDAG;
+}
+
+export interface ExecutionStatistics {
+  trace_count: number;
+  event_count: number;
+  average_confidence: number;
+  average_latency_by_component: Record<string, number>;
+}
+
+export async function listExecutions(limit = 50): Promise<ExecutionTrace[]> {
+  const response = await fetch(`${API_BASE_URL}/executions?limit=${limit}`);
+  return handleResponse<ExecutionTrace[]>(response);
+}
+
+export async function getExecution(executionId: string): Promise<ExecutionTrace> {
+  const response = await fetch(`${API_BASE_URL}/executions/${encodeURIComponent(executionId)}`);
+  return handleResponse<ExecutionTrace>(response);
+}
+
+export async function getExecutionTimeline(executionId: string): Promise<ReconstructedTimeline> {
+  const response = await fetch(`${API_BASE_URL}/executions/${encodeURIComponent(executionId)}/timeline`);
+  return handleResponse<ReconstructedTimeline>(response);
+}
+
+export async function getExecutionStatistics(): Promise<ExecutionStatistics> {
+  const response = await fetch(`${API_BASE_URL}/executions/statistics`);
+  return handleResponse<ExecutionStatistics>(response);
+}
+
+// --- Failure Intelligence (O3.4) ---
+
+export interface FailurePattern {
+  pattern_id: string;
+  category: string;
+  support: number;
+  frequency: number;
+  severity: string;
+  affected_components: string[];
+  example_execution_ids: string[];
+  confidence: number;
+  description: string;
+}
+
+export interface FailureAttribution {
+  pattern_id: string;
+  primary_cause: string;
+  secondary_cause: string | null;
+  contributing_components: string[];
+  evidence_confidence: number;
+  execution_confidence: number;
+  severity: string;
+  historical_frequency: number;
+}
+
+export interface FailureCluster {
+  cluster_id: string;
+  strategy_name: string;
+  key: string;
+  execution_ids: string[];
+  size: number;
+}
+
+export interface RootCauseNode {
+  id: string;
+  type: string;
+  label: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface RootCauseEdge {
+  source: string;
+  target: string;
+  type: string;
+  confidence: number;
+  evidence: string;
+}
+
+export interface RootCauseGraph {
+  nodes: RootCauseNode[];
+  edges: RootCauseEdge[];
+}
+
+export interface CounterfactualResult {
+  execution_id: string;
+  toggle: string;
+  applicable: boolean;
+  baseline_failure_categories: string[];
+  simulated_failure_categories: string[];
+  disappeared_categories: string[];
+  confidence: number;
+  expected_improvement: number;
+  note: string;
+}
+
+export interface OptimizationRecommendation {
+  subsystem: string;
+  explanation: string;
+  evidence: string[];
+  supporting_execution_ids: string[];
+  expected_benefit: string;
+  confidence: number;
+}
+
+export const COUNTERFACTUAL_TOGGLES = [
+  "planner",
+  "retriever",
+  "ranker",
+  "compression",
+  "verification",
+  "nli",
+  "recommendation_verification",
+  "faithfulness",
+] as const;
+
+export const CLUSTERING_STRATEGIES = ["rule_based", "embedding_based", "graph_based"] as const;
+export const RULE_BASED_CLUSTER_KEYS = ["category", "component_sequence", "intent", "entity", "timeline_proximity"] as const;
+
+export async function minePatterns(limit = 100): Promise<FailurePattern[]> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/patterns/mine?limit=${limit}`, { method: "POST" });
+  return handleResponse<FailurePattern[]>(response);
+}
+
+export async function listPatterns(): Promise<FailurePattern[]> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/patterns`);
+  return handleResponse<FailurePattern[]>(response);
+}
+
+export async function getPatternAttribution(patternId: string): Promise<FailureAttribution> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/patterns/${encodeURIComponent(patternId)}/attribution`);
+  return handleResponse<FailureAttribution>(response);
+}
+
+export async function getClusters(strategy: string = "rule_based", key: string = "category", limit = 100): Promise<FailureCluster[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/failure-intelligence/clusters?strategy=${strategy}&key=${key}&limit=${limit}`,
+  );
+  return handleResponse<FailureCluster[]>(response);
+}
+
+export async function getRootCauseGraph(executionId: string): Promise<RootCauseGraph> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/root-cause-graph/${encodeURIComponent(executionId)}`);
+  return handleResponse<RootCauseGraph>(response);
+}
+
+export async function simulateCounterfactual(executionId: string, toggle: string): Promise<CounterfactualResult> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/counterfactual/${encodeURIComponent(executionId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ toggle }),
+  });
+  return handleResponse<CounterfactualResult>(response);
+}
+
+export async function getOptimizationRecommendations(): Promise<OptimizationRecommendation[]> {
+  const response = await fetch(`${API_BASE_URL}/failure-intelligence/optimization-recommendations`);
+  return handleResponse<OptimizationRecommendation[]>(response);
 }
