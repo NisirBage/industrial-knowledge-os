@@ -12,11 +12,11 @@ awaits — matching the existing benchmark-runner convention.
 # graph-repository/graph-intelligence dependencies) in this process, or
 # torch's native DLL init can fail. Import it first, defensively, exactly
 # like the composition root does.
-import torch  # noqa: F401
-
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Awaitable, Callable
+
+import torch  # noqa: F401
 
 from app.evaluation.models import NamedMetric
 from app.research.ablation.models import AblationAxis, AblationResult
@@ -332,8 +332,8 @@ async def _caching_probe() -> AblationResult:
 
 
 async def _explainability_probe() -> AblationResult:
-    from app.ml.datasets.synthetic import generate_failure_prediction_dataset
     from app.ml.datasets.models import MLProblemType
+    from app.ml.datasets.synthetic import generate_failure_prediction_dataset
     from app.ml.explainability.explainer import Explainer
     from app.ml.training.trainer import SklearnTrainer
 
@@ -360,8 +360,8 @@ async def _explainability_probe() -> AblationResult:
 
 
 async def _vision_probe() -> AblationResult:
-    from app.vision.ocr.provider import build_ocr_provider
     from app.research.benchmarks.vision_runners import OCRBenchmark
+    from app.vision.ocr.provider import build_ocr_provider
 
     ocr_provider = build_ocr_provider()
     report = await OCRBenchmark(ocr_provider, tags=["P-101", "V-2201A"]).run()

@@ -1,4 +1,4 @@
-import type { ElementDefinition, Stylesheet } from "cytoscape";
+import type { ElementDefinition, NodeSingular, StylesheetJsonBlock as Stylesheet } from "cytoscape";
 import { Component, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -171,7 +171,7 @@ function GraphIntelligenceWorkspace() {
       {
         selector: "node",
         style: {
-          "background-color": (ele) => communityColor(ele.data("community_id")),
+          "background-color": (ele: NodeSingular) => communityColor(ele.data("community_id")),
           label: "data(label)",
           "font-size": 8,
           width: 24,

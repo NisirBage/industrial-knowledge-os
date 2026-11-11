@@ -29,7 +29,7 @@ def test_add_image_creates_image_node():
     repo = _repo()
     builder = VisionKnowledgeGraphBuilder(repo)
 
-    image_node_id = builder.add_image(_document())
+    builder.add_image(_document())
 
     assert repo.node_count() == 1
     assert "Image" in repo.distinct_entity_types()

@@ -12,8 +12,8 @@ today) fall back to the honestly-generic "equipment"/"text" buckets instead
 of being guessed.
 """
 
-from app.embeddings.embedder import Embedder
 from app.context_compression.models import EvidenceCluster
+from app.embeddings.embedder import Embedder
 from app.retrieval.evidence import Evidence
 
 _DEFAULT_DISTANCE_THRESHOLD = 0.3

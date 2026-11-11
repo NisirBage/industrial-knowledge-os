@@ -53,6 +53,7 @@ def test_full_factorial_other_axes_stay_enabled_in_every_combination():
 
 async def test_runner_run_axis_raises_for_unregistered_axis(monkeypatch):
     import pytest
+
     from app.research.ablation import runner as runner_module
 
     monkeypatch.setattr(runner_module, "PROBES", {})

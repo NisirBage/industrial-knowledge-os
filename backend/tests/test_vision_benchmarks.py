@@ -1,8 +1,3 @@
-from app.vision.defect.detector import ClassicalCVDefectDetector
-from app.vision.detection.detector import ClassicalCVObjectDetector
-from app.vision.diagram.parser import ClassicalCVDiagramParser
-from app.vision.gauge.reader import GaugeReader
-from app.vision.ocr.provider import build_ocr_provider
 from app.research.benchmarks.vision_runners import (
     DefectDetectionBenchmark,
     DiagramParsingBenchmark,
@@ -12,6 +7,11 @@ from app.research.benchmarks.vision_runners import (
     OCRBenchmark,
     VisionLatencyBenchmark,
 )
+from app.vision.defect.detector import ClassicalCVDefectDetector
+from app.vision.detection.detector import ClassicalCVObjectDetector
+from app.vision.diagram.parser import ClassicalCVDiagramParser
+from app.vision.gauge.reader import GaugeReader
+from app.vision.ocr.provider import build_ocr_provider
 
 
 async def test_diagram_parsing_benchmark_finds_all_three_symbol_types():

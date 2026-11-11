@@ -12,26 +12,20 @@ from app.entity_extraction.service import EntityExtractionService
 from app.evaluation.evaluators import EntityExtractionEvaluator
 from app.ontology.labels import EntityLabel, RelationType
 from app.research.ab_testing.comparator import ABComparator
-from app.research.benchmarks.models import BenchmarkReport
-from app.research.benchmarks.runners import (
-    EntityExtractionBenchmark,
-    KnowledgeGraphBenchmark,
-    RelationExtractionBenchmark,
-)
-from app.research.benchmarks.vision_runners import (
-    DefectDetectionBenchmark,
-    DiagramParsingBenchmark,
-    EquipmentRecognitionBenchmark,
-    GaugeReadingBenchmark,
-    MultimodalRetrievalBenchmark,
-    OCRBenchmark,
-    VisionLatencyBenchmark,
+from app.research.benchmarks.execution_trace_runners import ExecutionTraceBenchmark
+from app.research.benchmarks.failure_intelligence_runners import (
+    CounterfactualConsistencyBenchmark,
+    FailureIntelligenceLatencyBenchmark,
+    FailurePatternMiningBenchmark,
+    OptimizationRecommendationGroundednessBenchmark,
+    RootCauseAttributionBenchmark,
 )
 from app.research.benchmarks.graph_runners import (
     GraphEmbeddingBenchmark,
     LinkPredictionBenchmark,
     NodeClassificationBenchmark,
 )
+from app.research.benchmarks.models import BenchmarkReport
 from app.research.benchmarks.optimization_runners import (
     CompressionBenchmark,
     DeduplicationBenchmark,
@@ -47,13 +41,19 @@ from app.research.benchmarks.reasoning_runners import (
     NLIBenchmark,
     RecommendationVerificationBenchmark,
 )
-from app.research.benchmarks.execution_trace_runners import ExecutionTraceBenchmark
-from app.research.benchmarks.failure_intelligence_runners import (
-    CounterfactualConsistencyBenchmark,
-    FailureIntelligenceLatencyBenchmark,
-    FailurePatternMiningBenchmark,
-    OptimizationRecommendationGroundednessBenchmark,
-    RootCauseAttributionBenchmark,
+from app.research.benchmarks.runners import (
+    EntityExtractionBenchmark,
+    KnowledgeGraphBenchmark,
+    RelationExtractionBenchmark,
+)
+from app.research.benchmarks.vision_runners import (
+    DefectDetectionBenchmark,
+    DiagramParsingBenchmark,
+    EquipmentRecognitionBenchmark,
+    GaugeReadingBenchmark,
+    MultimodalRetrievalBenchmark,
+    OCRBenchmark,
+    VisionLatencyBenchmark,
 )
 from app.research.datasets.generator import SyntheticDatasetGenerator
 from app.research.experiments.manager import ExperimentManager

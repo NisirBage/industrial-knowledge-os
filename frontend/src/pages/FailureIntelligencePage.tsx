@@ -1,4 +1,4 @@
-import type { ElementDefinition, Stylesheet } from "cytoscape";
+import type { ElementDefinition, NodeSingular, StylesheetJsonBlock as Stylesheet } from "cytoscape";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CytoscapeGraph } from "../components/CytoscapeGraph";
@@ -340,7 +340,7 @@ function RootCauseGraphVisualization() {
       {
         selector: "node",
         style: {
-          "background-color": (ele) => NODE_TYPE_COLORS[ele.data("node_type") as string] ?? "#94a3b8",
+          "background-color": (ele: NodeSingular) => NODE_TYPE_COLORS[ele.data("node_type") as string] ?? "#94a3b8",
           label: "data(label)",
           "font-size": 8,
           width: 26,

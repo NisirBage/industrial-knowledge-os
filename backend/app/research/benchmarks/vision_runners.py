@@ -22,8 +22,8 @@ from app.retrieval.evidence import Evidence
 from app.vision.defect.detector import ClassicalCVDefectDetector
 from app.vision.defect.models import Defect, DefectType
 from app.vision.detection.detector import ClassicalCVObjectDetector
-from app.vision.diagram.parser import ClassicalCVDiagramParser
 from app.vision.diagram.models import SymbolType
+from app.vision.diagram.parser import ClassicalCVDiagramParser
 from app.vision.gauge.reader import GaugeReader
 from app.vision.graph.builder import VisionKnowledgeGraphBuilder
 from app.vision.ingestion.models import VisionDocument, VisionSourceType

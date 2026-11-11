@@ -1,7 +1,6 @@
 from app.caching.lru_cache import LRUTTLCache
 from app.repositories.vector_repository import ScoredChunk
 from app.retrieval.bm25_index import IndexedChunk
-from app.retrieval.evidence import Evidence
 from app.retrieval.graph_expansion import GraphExpansionResult
 from app.retrieval.hybrid import HybridRetriever
 

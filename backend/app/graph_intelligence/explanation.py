@@ -8,7 +8,6 @@ component.
 
 from dataclasses import dataclass
 
-from app.graph_intelligence.dataset.models import GraphDataset
 from app.graph_intelligence.embeddings.models import EmbeddingResult
 from app.graph_intelligence.similarity import GraphSimilarityService
 from app.repositories.graph_repository import GraphRepositoryProtocol

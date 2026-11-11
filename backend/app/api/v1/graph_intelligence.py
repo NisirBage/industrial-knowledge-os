@@ -14,7 +14,6 @@ from app.graph_intelligence.orchestration import available_embedding_models
 from app.graph_intelligence.propagation import PropagationType
 from app.graph_intelligence.similarity import GraphSimilarityService
 from app.prediction.models import PredictionTaskType
-from app.schemas.ml import FeatureImportanceOut
 from app.schemas.graph_intelligence import (
     EmbeddingTrainRequest,
     EmbeddingTrainResponse,
@@ -33,6 +32,7 @@ from app.schemas.graph_intelligence import (
     PropagationStepOut,
     SimilarNodeOut,
 )
+from app.schemas.ml import FeatureImportanceOut
 
 router = APIRouter(prefix="/graph-intelligence", tags=["graph-intelligence"])
 
@@ -154,7 +154,6 @@ async def explain_node(equipment_name: str, request: Request) -> ExplanationOut:
 
     explanation_service = GraphExplanationService(graph_repository)
     explanation = explanation_service.explain_node(node_id, embedding_result, confidence=0.8, structural_features=structural)
-    similarity_service = GraphSimilarityService()
     id_to_name = {n["id"]: n["canonical_name"] for n in graph_repository.find_neighbors(node_id, depth=1)}
 
     return ExplanationOut(

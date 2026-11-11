@@ -1,5 +1,5 @@
 import cytoscape from "cytoscape";
-import type { Core, ElementDefinition, Stylesheet } from "cytoscape";
+import type { Core, ElementDefinition, LayoutOptions, StylesheetJsonBlock as Stylesheet } from "cytoscape";
 import { useEffect, useRef } from "react";
 
 /**
@@ -50,7 +50,7 @@ export function CytoscapeGraph({
       container: containerRef.current,
       elements,
       style: stylesheet,
-      layout: { name: layoutName, animate: false },
+      layout: { name: layoutName, animate: false } as LayoutOptions,
       wheelSensitivity: 0.2,
     });
     if (onNodeTap) {

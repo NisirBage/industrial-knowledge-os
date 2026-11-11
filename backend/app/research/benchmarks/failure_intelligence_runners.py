@@ -15,7 +15,6 @@ doesn't have).
 
 import time
 
-from app.error_analysis.models import FailureSeverity
 from app.evaluation.models import NamedMetric
 from app.execution.models import ExecutionEvent, ExecutionTrace
 from app.failure_intelligence.attribution import FailureAttributionEngine

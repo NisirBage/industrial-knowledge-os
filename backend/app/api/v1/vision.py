@@ -9,8 +9,8 @@ changes to app/orchestrator or the M3 pipeline.
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from app.vision.ingestion.models import VisionSourceType
-from app.vision.ingestion.service import UnsupportedImageError
+from app.retrieval.explain import explain_evidence
+from app.schemas.chat import EvidenceOut
 from app.schemas.vision import (
     DefectOut,
     DetectionOut,
@@ -22,8 +22,8 @@ from app.schemas.vision import (
     VisionAnalysisOut,
     VisionDocumentOut,
 )
-from app.retrieval.explain import explain_evidence
-from app.schemas.chat import EvidenceOut
+from app.vision.ingestion.models import VisionSourceType
+from app.vision.ingestion.service import UnsupportedImageError
 
 router = APIRouter(prefix="/vision", tags=["vision"])
 

@@ -1,4 +1,4 @@
-import type { ElementDefinition, Stylesheet } from "cytoscape";
+import type { ElementDefinition, StylesheetJsonBlock as Stylesheet } from "cytoscape";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CytoscapeGraph } from "../components/CytoscapeGraph";
@@ -104,7 +104,7 @@ function ExecutionInspector({ executionId }: { executionId: string }) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" tickFormatter={(v: number) => `${v}s`} />
                 <YAxis type="category" dataKey="component" width={120} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value: number, name: string) => [`${Number(value).toFixed(3)}s`, name]} />
+                <Tooltip formatter={(value, name) => [`${Number(value).toFixed(3)}s`, String(name)]} />
                 <Bar dataKey="offset" stackId="a" fill="transparent" isAnimationActive={false} />
                 <Bar dataKey="duration" stackId="a" fill="#4f46e5" isAnimationActive={false} />
               </BarChart>

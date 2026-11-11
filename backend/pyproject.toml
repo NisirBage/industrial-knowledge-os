@@ -5,3 +5,9 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# torch must be imported before neo4j on Windows (DLL load-order bug, see the
+# comments in these files), so their import blocks are deliberately unsorted.
+"app/main.py" = ["I001"]
+"tests/conftest.py" = ["I001"]

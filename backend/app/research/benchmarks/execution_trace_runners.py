@@ -183,7 +183,7 @@ class ExecutionTraceBenchmark:
 
         stage_names = sorted(all_latencies[0].keys())
         stage_metrics = [
-            NamedMetric(f"latency_{stage}_mean_seconds", round(sum(l[stage] for l in all_latencies) / run_count, 6))
+            NamedMetric(f"latency_{stage}_mean_seconds", round(sum(run[stage] for run in all_latencies) / run_count, 6))
             for stage in stage_names
         ]
 

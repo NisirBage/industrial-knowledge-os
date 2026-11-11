@@ -1,8 +1,6 @@
 # IKIOS — Industrial Knowledge Intelligence OS
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-951%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
@@ -188,7 +186,7 @@ reference: [docs/api/README.md](docs/api/README.md). Highlights:
 cd backend
 pip install -r requirements-dev.txt
 pytest -q                                       # 444 tests
-pytest -q --cov=app --cov-report=term-missing   # with coverage (96%)
+pytest -q --cov=app --cov-report=term-missing   # with coverage report
 
 cd ../frontend
 npm test                                        # 107 tests (Vitest + React Testing Library)
