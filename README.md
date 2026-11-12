@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/NisirBage/industrial-knowledge-os/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Node](https://img.shields.io/badge/node-20%2B-blue)
 
@@ -37,7 +37,7 @@ disagree, and predicts what's likely to happen next.
 | Hybrid Retrieval | BM25 + vector + graph expansion + cross-encoder reranking |
 | Agentic Reasoning | 13-stage LangGraph pipeline: plan → retrieve → fuse evidence → reason → extract/verify/propagate claims → recommend → verify → narrate → score faithfulness |
 | Learning Layer | Timeline reconstruction, rule-based prediction, feedback loop |
-| Research Framework | Real benchmarks, reproducible experiments, A/B testing |
+| Research Framework | Benchmarks on seeded synthetic data (see [docs/benchmarks](docs/benchmarks/README.md) for limitations), reproducible experiments, A/B testing |
 | ML Laboratory | Real scikit-learn training, model registry, explainability, drift monitoring |
 | Multimodal Vision | OCR, diagram parsing, equipment/gauge/defect detection — images become graph evidence too |
 | Graph Intelligence | Node2Vec/DeepWalk/GCN/GraphSAGE/GAT embeddings, link prediction, node classification, risk propagation — another reasoning source, not a replacement for symbolic reasoning |
